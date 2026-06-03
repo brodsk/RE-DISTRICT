@@ -2,28 +2,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import AnimatedSection from "@/components/ui/AnimatedSection";
+import { useLang } from "@/lib/lang";
 
-const inquiryTypes = [
-  "Purchase inquiry",
-  "Custom build consultation",
-  "Restoration request",
-  "General question",
-];
+const inquiryTypes = {
+  en: ["Purchase inquiry", "Custom build consultation", "Restoration request", "General question"],
+  ru: ["Запрос о покупке", "Консультация по кастому", "Заявка на реставрацию", "Общий вопрос"],
+};
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    type: "",
-    message: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", type: "", message: "" });
+  const { t } = useLang();
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
+  const types = t(inquiryTypes.en, inquiryTypes.ru) as string[];
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -38,12 +31,12 @@ export default function ContactPage() {
         {/* Header */}
         <AnimatedSection className="mb-16 md:mb-20">
           <p className="text-[10px] tracking-[0.4em] uppercase text-zinc-600 font-mono mb-4">
-            Get in Touch
+            {t("Get in Touch", "Напишите нам")}
           </p>
           <h1 className="font-display text-6xl md:text-8xl font-light leading-none">
-            Let's talk
+            {t("Let's talk", "Поговорим")}
             <br />
-            <span className="italic">watches.</span>
+            <span className="italic">{t("watches.", "о часах.")}</span>
           </h1>
         </AnimatedSection>
 
@@ -52,50 +45,32 @@ export default function ContactPage() {
           <AnimatedSection direction="left" className="space-y-12">
             <div>
               <p className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono mb-4">
-                How We Work
+                {t("How We Work", "Как мы работаем")}
               </p>
               <p className="text-sm text-zinc-400 leading-relaxed mb-4">
-                Every inquiry is handled personally. Whether you're looking for
-                a specific reference, want to discuss a custom build, or have a
-                watch in need of restoration — write to us and we'll respond
-                within 24 hours.
+                {t(
+                  "Every inquiry is handled personally. Whether you're looking for a specific reference, want to discuss a custom build, or have a watch in need of restoration — write to us and we'll respond within 24 hours.",
+                  "Каждый запрос рассматривается лично. Ищете конкретную модель, хотите обсудить кастом или есть часы для реставрации — напишите нам, ответим в течение 24 часов."
+                )}
               </p>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                For custom builds, we typically begin with a consultation call
-                to understand your vision before providing a quote and
-                timeline.
+                {t(
+                  "For custom builds, we typically begin with a consultation call to understand your vision before providing a quote and timeline.",
+                  "Для кастом-заказов мы начинаем с консультации, чтобы понять вашу идею, прежде чем предоставить смету и сроки."
+                )}
               </p>
             </div>
 
             <div className="space-y-6">
               {[
-                {
-                  label: "Email",
-                  value: "hello@redistrict.co",
-                  href: "mailto:hello@redistrict.co",
-                },
-                {
-                  label: "Response time",
-                  value: "Within 24 hours",
-                  href: null,
-                },
-                {
-                  label: "Custom consultations",
-                  value: "By appointment",
-                  href: null,
-                },
+                { label: t("Email", "Почта"), value: "hello@redistrict.co", href: "mailto:hello@redistrict.co" },
+                { label: t("Response time", "Время ответа"), value: t("Within 24 hours", "В течение 24 часов"), href: null },
+                { label: t("Custom consultations", "Консультации"), value: t("By appointment", "По записи"), href: null },
               ].map((item) => (
                 <div key={item.label} className="border-b border-white/8 pb-5">
-                  <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-1">
-                    {item.label}
-                  </p>
+                  <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-1">{item.label}</p>
                   {item.href ? (
-                    <a
-                      href={item.href}
-                      className="text-sm text-white hover:text-zinc-300 transition-colors"
-                    >
-                      {item.value}
-                    </a>
+                    <a href={item.href} className="text-sm text-white hover:text-zinc-300 transition-colors">{item.value}</a>
                   ) : (
                     <p className="text-sm text-white">{item.value}</p>
                   )}
@@ -105,8 +80,10 @@ export default function ContactPage() {
 
             <div className="bg-zinc-950 p-6">
               <p className="font-display text-xl italic text-zinc-400 leading-relaxed">
-                "Every great collection starts with a single question asked to
-                the right person."
+                {t(
+                  '"Every great collection starts with a single question asked to the right person."',
+                  '«Каждая великая коллекция начинается с одного вопроса, заданного нужному человеку.»'
+                )}
               </p>
             </div>
           </AnimatedSection>
@@ -118,7 +95,7 @@ export default function ContactPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-2">
-                      Name
+                      {t("Name", "Имя")}
                     </label>
                     <input
                       name="name"
@@ -126,12 +103,12 @@ export default function ContactPage() {
                       value={form.name}
                       onChange={handleChange}
                       className="w-full bg-transparent border border-white/10 hover:border-white/25 focus:border-white/50 outline-none px-4 py-3 text-sm text-white placeholder:text-zinc-800 transition-colors"
-                      placeholder="Your name"
+                      placeholder={t("Your name", "Ваше имя")}
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-2">
-                      Email
+                      {t("Email", "Почта")}
                     </label>
                     <input
                       name="email"
@@ -147,7 +124,7 @@ export default function ContactPage() {
 
                 <div>
                   <label className="block text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-2">
-                    Inquiry Type
+                    {t("Inquiry Type", "Тип запроса")}
                   </label>
                   <select
                     name="type"
@@ -156,20 +133,16 @@ export default function ContactPage() {
                     onChange={handleChange}
                     className="w-full bg-black border border-white/10 hover:border-white/25 focus:border-white/50 outline-none px-4 py-3 text-sm text-white transition-colors"
                   >
-                    <option value="" disabled>
-                      Select type
-                    </option>
-                    {inquiryTypes.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
+                    <option value="" disabled>{t("Select type", "Выберите тип")}</option>
+                    {types.map((tp) => (
+                      <option key={tp} value={tp}>{tp}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-2">
-                    Message
+                    {t("Message", "Сообщение")}
                   </label>
                   <textarea
                     name="message"
@@ -178,7 +151,7 @@ export default function ContactPage() {
                     value={form.message}
                     onChange={handleChange}
                     className="w-full bg-transparent border border-white/10 hover:border-white/25 focus:border-white/50 outline-none px-4 py-3 text-sm text-white placeholder:text-zinc-800 transition-colors resize-none"
-                    placeholder="Tell us what you're looking for..."
+                    placeholder={t("Tell us what you're looking for...", "Расскажите, что вы ищете...")}
                   />
                 </div>
 
@@ -186,11 +159,14 @@ export default function ContactPage() {
                   type="submit"
                   className="w-full text-xs tracking-[0.3em] uppercase bg-white text-black hover:bg-zinc-200 py-5 transition-colors font-medium"
                 >
-                  Send Message
+                  {t("Send Message", "Отправить")}
                 </button>
 
                 <p className="text-[10px] text-zinc-700 font-mono text-center">
-                  We respond to every message personally, within 24 hours.
+                  {t(
+                    "We respond to every message personally, within 24 hours.",
+                    "Мы отвечаем на каждое сообщение лично, в течение 24 часов."
+                  )}
                 </p>
               </form>
             ) : (
@@ -202,15 +178,15 @@ export default function ContactPage() {
               >
                 <div className="w-1 h-16 bg-white" />
                 <h2 className="font-display text-4xl font-light">
-                  Message received.
+                  {t("Message received.", "Сообщение получено.")}
                 </h2>
                 <p className="text-sm text-zinc-400 leading-relaxed">
-                  Thank you for reaching out. We'll be in touch within 24
-                  hours.
+                  {t(
+                    "Thank you for reaching out. We'll be in touch within 24 hours.",
+                    "Спасибо за обращение. Свяжемся в течение 24 часов."
+                  )}
                 </p>
-                <p className="text-xs text-zinc-700 font-mono tracking-wider">
-                  RE:DISTRICT
-                </p>
+                <p className="text-xs text-zinc-700 font-mono tracking-wider">RE:DISTRICT</p>
               </motion.div>
             )}
           </AnimatedSection>
