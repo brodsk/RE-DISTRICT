@@ -3,6 +3,7 @@ import "./globals.css";
 import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import CustomCursor from "@/components/ui/CustomCursor";
+import { LangProvider } from "@/lib/lang";
 
 export const metadata: Metadata = {
   title: {
@@ -36,10 +37,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-black">
       <body className="bg-black text-white antialiased overflow-x-hidden">
-        <CustomCursor />
-        <Navigation />
-        <main>{children}</main>
-        <Footer />
+        <LangProvider>
+          <CustomCursor />
+          <Navigation />
+          <main>{children}</main>
+          <Footer />
+        </LangProvider>
       </body>
     </html>
   );
