@@ -1,25 +1,10 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { motion } from "framer-motion";
 import WatchCard from "@/components/ui/WatchCard";
 import { watches, WatchCategory } from "@/lib/data";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-
-const categories: { value: WatchCategory | "all"; label: string }[] = [
-  { value: "all", label: "All Watches" },
-  { value: "custom", label: "Custom" },
-  { value: "restored", label: "Restored" },
-  { value: "curated", label: "Curated" },
-];
-
-const sortOptions = [
-  { value: "default", label: "Featured" },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc", label: "Price: High to Low" },
-  { value: "year-asc", label: "Year: Oldest" },
-  { value: "year-desc", label: "Year: Newest" },
-];
+import { useLang } from "@/lib/lang";
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -27,19 +12,30 @@ function ShopContent() {
   const [activeCategory, setActiveCategory] = useState<WatchCategory | "all">(initialCategory);
   const [sort, setSort] = useState("default");
   const [search, setSearch] = useState("");
+  const { t } = useLang();
+
+  const categories = [
+    { value: "all" as const, en: "All Watches", ru: "Все часы" },
+    { value: "custom" as const, en: "Custom", ru: "Кастом" },
+    { value: "restored" as const, en: "Restored", ru: "Реставрация" },
+    { value: "curated" as const, en: "Curated", ru: "Подбор" },
+  ];
+
+  const sortOptions = [
+    { value: "default", en: "Featured", ru: "Избранное" },
+    { value: "price-asc", en: "Price: Low to High", ru: "Цена: от низкой" },
+    { value: "price-desc", en: "Price: High to Low", ru: "Цена: от высокой" },
+    { value: "year-asc", en: "Year: Oldest", ru: "Год: сначала старые" },
+    { value: "year-desc", en: "Year: Newest", ru: "Год: сначала новые" },
+  ];
 
   const filtered = useMemo(() => {
     let list = [...watches];
-    if (activeCategory !== "all") {
-      list = list.filter((w) => w.category === activeCategory);
-    }
+    if (activeCategory !== "all") list = list.filter((w) => w.category === activeCategory);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
-        (w) =>
-          w.name.toLowerCase().includes(q) ||
-          w.brand.toLowerCase().includes(q) ||
-          w.tagline.toLowerCase().includes(q)
+        (w) => w.name.toLowerCase().includes(q) || w.brand.toLowerCase().includes(q) || w.tagline.toLowerCase().includes(q)
       );
     }
     if (sort === "price-asc") list.sort((a, b) => a.price - b.price);
@@ -60,10 +56,10 @@ function ShopContent() {
           className="mb-16 md:mb-20"
         >
           <p className="text-[10px] tracking-[0.4em] uppercase text-zinc-600 font-mono mb-3">
-            Current Selection
+            {t("Current Selection", "Текущий выбор")}
           </p>
           <h1 className="font-display text-6xl md:text-8xl font-light leading-none">
-            The Shop.
+            {t("The Shop.", "Каталог.")}
           </h1>
         </motion.div>
 
@@ -81,17 +77,12 @@ function ShopContent() {
                 key={cat.value}
                 onClick={() => setActiveCategory(cat.value)}
                 className={`text-xs tracking-[0.25em] uppercase shrink-0 transition-colors duration-200 ${
-                  activeCategory === cat.value
-                    ? "text-white"
-                    : "text-zinc-600 hover:text-zinc-300"
+                  activeCategory === cat.value ? "text-white" : "text-zinc-600 hover:text-zinc-300"
                 }`}
               >
-                {cat.label}
+                {t(cat.en, cat.ru)}
                 {activeCategory === cat.value && (
-                  <motion.div
-                    layoutId="activeCategory"
-                    className="h-px bg-white mt-1"
-                  />
+                  <motion.div layoutId="activeCategory" className="h-px bg-white mt-1" />
                 )}
               </button>
             ))}
@@ -99,24 +90,20 @@ function ShopContent() {
 
           {/* Right controls */}
           <div className="flex items-center gap-4">
-            {/* Search */}
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t("Search...", "Поиск...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-transparent border border-white/10 hover:border-white/25 focus:border-white/40 outline-none px-4 py-2 text-xs text-white placeholder:text-zinc-700 font-mono tracking-wider w-44 transition-colors"
             />
-            {/* Sort */}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
               className="bg-black border border-white/10 hover:border-white/25 outline-none px-3 py-2 text-xs text-zinc-400 font-mono tracking-wider cursor-pointer"
             >
               {sortOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+                <option key={o.value} value={o.value}>{t(o.en, o.ru)}</option>
               ))}
             </select>
           </div>
@@ -124,7 +111,10 @@ function ShopContent() {
 
         {/* Count */}
         <p className="text-xs text-zinc-700 font-mono tracking-wider mb-10">
-          {filtered.length} piece{filtered.length !== 1 ? "s" : ""}
+          {filtered.length} {t(
+            filtered.length !== 1 ? "pieces" : "piece",
+            filtered.length !== 1 ? "позиции" : "позиция"
+          )}
         </p>
 
         {/* Grid */}
@@ -137,10 +127,10 @@ function ShopContent() {
         ) : (
           <div className="text-center py-24">
             <p className="font-display text-3xl text-zinc-700 font-light italic mb-3">
-              Nothing here.
+              {t("Nothing here.", "Ничего не найдено.")}
             </p>
             <p className="text-xs text-zinc-700 font-mono tracking-wider">
-              Try a different filter.
+              {t("Try a different filter.", "Попробуйте другой фильтр.")}
             </p>
           </div>
         )}
