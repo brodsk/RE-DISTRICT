@@ -1,9 +1,34 @@
 "use client";
 import { motion } from "framer-motion";
 import AnimatedSection from "@/components/ui/AnimatedSection";
-import { process } from "@/lib/data";
+import { useLang } from "@/lib/lang";
+
+const steps = [
+  {
+    step: "01",
+    en: { title: "Source", description: "We hunt. Estate sales, private collections, trusted dealers across Europe and Japan. Every piece passes through our hands before it reaches you." },
+    ru: { title: "Поиск", description: "Мы ищем. Частные коллекции, аукционы, проверенные дилеры по всей Европе и Японии. Каждый экземпляр проходит через наши руки прежде, чем попасть к вам." },
+  },
+  {
+    step: "02",
+    en: { title: "Assess", description: "Complete inspection under magnification. Movement, dial, case, crystal, crown — every component evaluated and documented." },
+    ru: { title: "Оценка", description: "Полная инспекция под увеличением. Механизм, циферблат, корпус, стекло, заводная головка — каждый компонент проверен и задокументирован." },
+  },
+  {
+    step: "03",
+    en: { title: "Restore or Build", description: "Restoration respects originality. Custom work starts from vision. Both demand the same level of craft." },
+    ru: { title: "Реставрация или сборка", description: "Реставрация уважает оригинал. Кастом начинается с идеи. Оба требуют одного уровня мастерства." },
+  },
+  {
+    step: "04",
+    en: { title: "Certify", description: "Every watch leaves with full documentation of its condition, history, and any work performed. Honesty is the foundation." },
+    ru: { title: "Сертификация", description: "Каждые часы уходят с полной документацией состояния, истории и выполненных работ. Честность — это основа." },
+  },
+];
 
 export default function ProcessSection() {
+  const { t } = useLang();
+
   return (
     <section className="py-28 md:py-40 px-6 md:px-12 bg-black overflow-hidden">
       <div className="max-w-screen-xl mx-auto">
@@ -18,7 +43,6 @@ export default function ProcessSection() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
             </div>
-            {/* Floating label */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -27,10 +51,10 @@ export default function ProcessSection() {
               className="absolute -right-4 md:-right-8 top-1/3 bg-black border border-white/10 p-4 max-w-[180px]"
             >
               <p className="text-[10px] tracking-[0.25em] uppercase text-zinc-500 font-mono mb-1">
-                Standard
+                {t("Standard", "Стандарт")}
               </p>
               <p className="font-display text-lg text-white font-light leading-tight">
-                Every detail matters.
+                {t("Every detail matters.", "Каждая деталь важна.")}
               </p>
             </motion.div>
           </AnimatedSection>
@@ -39,17 +63,19 @@ export default function ProcessSection() {
           <div className="order-1 lg:order-2">
             <AnimatedSection>
               <p className="text-[10px] tracking-[0.4em] uppercase text-zinc-600 font-mono mb-4">
-                Our Process
+                {t("Our Process", "Наш процесс")}
               </p>
               <h2 className="font-display text-5xl md:text-6xl font-light leading-none mb-16">
-                Workshop.
+                {t("Workshop.", "Мастерская.")}
                 <br />
-                <span className="italic">Not a warehouse.</span>
+                <span className="italic">
+                  {t("Not a warehouse.", "Не склад.")}
+                </span>
               </h2>
             </AnimatedSection>
 
             <div className="space-y-0">
-              {process.map((step, i) => (
+              {steps.map((step, i) => (
                 <motion.div
                   key={step.step}
                   initial={{ opacity: 0, y: 24 }}
@@ -64,10 +90,10 @@ export default function ProcessSection() {
                     </span>
                     <div>
                       <h3 className="font-display text-2xl font-light text-white mb-2 group-hover:opacity-70 transition-opacity">
-                        {step.title}
+                        {t(step.en.title, step.ru.title)}
                       </h3>
                       <p className="text-sm text-zinc-500 leading-relaxed">
-                        {step.description}
+                        {t(step.en.description, step.ru.description)}
                       </p>
                     </div>
                   </div>

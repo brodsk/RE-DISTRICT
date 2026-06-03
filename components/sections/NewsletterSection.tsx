@@ -2,16 +2,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import AnimatedSection from "@/components/ui/AnimatedSection";
+import { useLang } from "@/lib/lang";
 
 export default function NewsletterSection() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const { t } = useLang();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
-      setSubmitted(true);
-    }
+    if (email) setSubmitted(true);
   };
 
   return (
@@ -20,16 +20,20 @@ export default function NewsletterSection() {
         <div className="max-w-2xl">
           <AnimatedSection>
             <p className="text-[10px] tracking-[0.4em] uppercase text-zinc-600 font-mono mb-4">
-              Stay Close
+              {t("Stay Close", "Будьте в курсе")}
             </p>
             <h2 className="font-display text-5xl md:text-6xl font-light leading-none mb-6">
-              First to know.
+              {t("First to know.", "Первым узнавай.")}
               <br />
-              <span className="italic text-zinc-500">No noise.</span>
+              <span className="italic text-zinc-500">
+                {t("No noise.", "Только суть.")}
+              </span>
             </h2>
             <p className="text-sm text-zinc-500 leading-relaxed mb-10 max-w-sm">
-              New arrivals, restoration stories, and occasional thoughts on
-              watch culture. Nothing else.
+              {t(
+                "New arrivals, restoration stories, and occasional thoughts on watch culture. Nothing else.",
+                "Новые поступления, истории реставраций и мысли о культуре часов. Ничего лишнего."
+              )}
             </p>
           </AnimatedSection>
 
@@ -48,7 +52,7 @@ export default function NewsletterSection() {
                   type="submit"
                   className="px-6 py-4 bg-white text-black text-xs tracking-[0.25em] uppercase font-medium hover:bg-zinc-200 transition-colors shrink-0"
                 >
-                  Subscribe
+                  {t("Subscribe", "Подписаться")}
                 </button>
               </form>
             ) : (
@@ -61,10 +65,13 @@ export default function NewsletterSection() {
                 <div className="w-1 h-8 bg-white" />
                 <div>
                   <p className="font-display text-xl font-light text-white">
-                    You're in.
+                    {t("You're in.", "Вы подписаны.")}
                   </p>
                   <p className="text-xs text-zinc-500 font-mono">
-                    We'll be in touch when something worthy arrives.
+                    {t(
+                      "We'll be in touch when something worthy arrives.",
+                      "Напишем, когда появится что-то достойное."
+                    )}
                   </p>
                 </div>
               </motion.div>
