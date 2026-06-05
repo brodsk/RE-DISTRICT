@@ -3,6 +3,7 @@ import "./globals.css";
 import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import CustomCursor from "@/components/ui/CustomCursor";
+import DynamicFavicon from "@/components/ui/DynamicFavicon";
 import { LangProvider } from "@/lib/lang";
 
 export const metadata: Metadata = {
@@ -20,6 +21,9 @@ export const metadata: Metadata = {
     "watch customization",
     "RE:DISTRICT",
   ],
+  icons: {
+    icon: "/icon.svg",
+  },
   openGraph: {
     title: "RE:DISTRICT — Rebuild Your Time",
     description:
@@ -38,6 +42,7 @@ export default function RootLayout({
     <html lang="en" className="bg-black">
       <body className="bg-black text-white antialiased overflow-x-hidden">
         <LangProvider>
+          <DynamicFavicon />
           <CustomCursor />
           <Navigation />
           <main>{children}</main>
