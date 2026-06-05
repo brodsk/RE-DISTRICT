@@ -1,42 +1,38 @@
 "use client";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import AnimatedSection from "@/components/ui/AnimatedSection";
 import { useLang } from "@/lib/lang";
 
 const pillars = [
   {
     number: "01",
     title: { en: "Custom", ru: "Кастом" },
-    subtitle: { en: "Built for one.", ru: "Создано для одного." },
+    code:  "CST",
     description: {
-      en: "Unique modifications and complete custom builds. From PVD coating and dial replacements to full bespoke creations. Your vision, executed with precision.",
-      ru: "Уникальные модификации и полностью кастомные сборки. От PVD-покрытий и замены циферблатов до изделий по индивидуальному заказу. Ваше видение — воплощённое точно.",
+      en: "Modifications and complete custom builds. PVD, dial swaps, bracelet upgrades. Your spec.",
+      ru: "Модификации и полные кастомные сборки. PVD, замена циферблатов, апгрейд браслетов. Ваши требования.",
     },
     href: "/shop?category=custom",
-    image: "https://images.unsplash.com/photo-1509048191080-d2984bad6ae5?w=800&q=85",
   },
   {
     number: "02",
     title: { en: "Restored", ru: "Реставрация" },
-    subtitle: { en: "History preserved.", ru: "История сохранена." },
+    code:  "RST",
     description: {
-      en: "Carefully restored vintage watches. Every component inspected, serviced, and returned to the standard of its original manufacture — with its character intact.",
-      ru: "Тщательно отреставрированные винтажные часы. Каждый компонент проверен, обслужен и возвращён к стандарту оригинального производства — с сохранённым характером.",
+      en: "Vintage pieces serviced and returned to working order. Condition documented. Nothing hidden.",
+      ru: "Винтажные часы, обслуженные и приведённые в рабочее состояние. Состояние задокументировано. Ничего скрытого.",
     },
     href: "/shop?category=restored",
-    image: "https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?w=800&q=85",
   },
   {
     number: "03",
     title: { en: "Curated", ru: "Подбор" },
-    subtitle: { en: "Selected with intent.", ru: "Выбрано намеренно." },
+    code:  "CRT",
     description: {
-      en: "Pre-owned watches chosen for their character, condition, and story. Nothing generic. Everything deliberate.",
-      ru: "Бывшие в употреблении часы, отобранные за характер, состояние и историю. Ничего стандартного. Всё намеренно.",
+      en: "Pre-owned pieces selected for condition, character, and value. Casio, Seiko, Orient, Citizen.",
+      ru: "Бывшие в употреблении часы, отобранные по состоянию, характеру и ценности. Casio, Seiko, Orient, Citizen.",
     },
     href: "/shop?category=curated",
-    image: "https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=800&q=85",
   },
 ];
 
@@ -44,55 +40,69 @@ export default function PillarsSection() {
   const { t } = useLang();
 
   return (
-    <section className="py-28 md:py-40 px-6 md:px-12 bg-black">
+    <section className="py-20 md:py-28 px-6 md:px-12 bg-black border-t border-white/5">
       <div className="max-w-screen-xl mx-auto">
-        <AnimatedSection className="mb-20 md:mb-28">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-zinc-600 font-mono mb-4">
-            {t("What we do", "Что мы делаем")}
-          </p>
-          <h2 className="font-display text-5xl md:text-7xl font-light leading-none">
-            {t("Three ways", "Три способа")}
-            <br />
-            <span className="italic">{t("to own time.", "владеть временем.")}</span>
-          </h2>
-        </AnimatedSection>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5">
-          {pillars.map((pillar, i) => (
+        {/* Section header — instrument style */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="flex items-center gap-4 mb-12 md:mb-16"
+        >
+          <span className="text-[9px] font-mono tracking-[0.4em] uppercase text-zinc-700">
+            {t("Function", "Функция")}
+          </span>
+          <div className="flex-1 h-px bg-white/5" />
+          <span className="text-[9px] font-mono tracking-[0.4em] uppercase text-zinc-700">
+            SYS.03
+          </span>
+        </motion.div>
+
+        {/* Three columns — no images, pure text/data layout */}
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5">
+          {pillars.map((p, i) => (
             <motion.div
-              key={pillar.number}
-              initial={{ opacity: 0, y: 32 }}
+              key={p.number}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.8, delay: i * 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-              className="bg-black p-8 md:p-10 group relative overflow-hidden"
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.6, delay: i * 0.1 }}
+              className="group px-0 md:px-8 py-8 md:py-0 first:pl-0 last:pr-0"
             >
-              <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-700 bg-cover bg-center"
-                style={{ backgroundImage: `url('${pillar.image}')` }}
-              />
-              <div className="relative z-10">
-                <span className="text-[10px] tracking-[0.35em] uppercase text-zinc-700 font-mono block mb-8">
-                  {pillar.number}
+              {/* Code badge */}
+              <div className="flex items-center gap-3 mb-6">
+                <span className="text-[8px] font-mono tracking-[0.4em] text-zinc-700 border border-white/8 px-2 py-1">
+                  {p.code}
                 </span>
-                <h3 className="font-display text-4xl md:text-5xl font-light mb-2 text-white">
-                  {t(pillar.title.en, pillar.title.ru)}
-                </h3>
-                <p className="font-display text-lg italic text-zinc-500 mb-6">
-                  {t(pillar.subtitle.en, pillar.subtitle.ru)}
-                </p>
-                <div className="w-8 h-px bg-white/20 mb-6 group-hover:w-16 group-hover:bg-white/60 transition-all duration-500" />
-                <p className="text-sm text-zinc-400 leading-relaxed mb-8">
-                  {t(pillar.description.en, pillar.description.ru)}
-                </p>
-                <Link
-                  href={pillar.href}
-                  className="text-[10px] tracking-[0.3em] uppercase text-zinc-500 hover:text-white transition-colors flex items-center gap-3"
-                >
-                  {t("View Collection", "Смотреть")}
-                  <span className="w-4 h-px bg-current inline-block" />
-                </Link>
+                <span className="text-[8px] font-mono tracking-[0.3em] text-zinc-800">
+                  {p.number}
+                </span>
               </div>
+
+              {/* Title */}
+              <h3 className="text-2xl md:text-3xl font-light text-white mb-3 group-hover:text-zinc-300 transition-colors"
+                style={{ fontFamily: "var(--font-display, serif)" }}>
+                {t(p.title.en, p.title.ru)}
+              </h3>
+
+              {/* Divider */}
+              <div className="w-6 h-px bg-white/15 mb-4 group-hover:w-12 group-hover:bg-white/40 transition-all duration-400" />
+
+              {/* Description */}
+              <p className="text-[11px] md:text-xs text-zinc-600 leading-relaxed font-mono mb-6">
+                {t(p.description.en, p.description.ru)}
+              </p>
+
+              {/* CTA */}
+              <Link
+                href={p.href}
+                className="inline-flex items-center gap-2 text-[9px] font-mono tracking-[0.35em] uppercase text-zinc-700 hover:text-white transition-colors"
+              >
+                {t("View", "Смотреть")}
+                <span className="w-3 h-px bg-current" />
+              </Link>
             </motion.div>
           ))}
         </div>

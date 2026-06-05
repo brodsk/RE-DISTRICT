@@ -5,48 +5,42 @@ import { useLang } from "@/lib/lang";
 export default function Footer() {
   const { t } = useLang();
 
-  const navLinks = [
-    { href: "/shop", en: "Shop", ru: "Каталог" },
-    { href: "/shop?category=custom", en: "Custom", ru: "Кастом" },
-    { href: "/shop?category=restored", en: "Restored", ru: "Реставрация" },
-    { href: "/shop?category=curated", en: "Curated", ru: "Подбор" },
-  ];
-
-  const infoLinks = [
-    { href: "/about", en: "About", ru: "О нас" },
-    { href: "/contact", en: "Contact", ru: "Контакт" },
-    { href: "/contact", en: "Custom Orders", ru: "Кастом-заказы" },
-  ];
-
   return (
-    <footer className="bg-black border-t border-white/5 py-20 px-6 md:px-12">
+    <footer className="bg-black border-t border-white/5 px-6 md:px-12 py-12 md:py-16">
       <div className="max-w-screen-xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           {/* Brand */}
-          <div className="md:col-span-2">
-            <div className="font-display text-3xl font-light tracking-[0.2em] uppercase mb-4">
+          <div className="col-span-2 md:col-span-1">
+            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white mb-3">
               RE:DISTRICT
-            </div>
-            <p className="text-zinc-500 text-sm leading-relaxed max-w-xs mb-2">
-              {t("Time is the same for everyone.", "Время одинаково для каждого.")}
-              <br />
-              {t("Watches are not.", "Часы — нет.")}
             </p>
-            <p className="text-zinc-600 text-xs tracking-[0.2em] uppercase mt-6">
-              {t("Rebuild your time.", "Переосмысли своё время.")}
+            <p className="text-[9px] font-mono text-zinc-700 leading-relaxed mb-4">
+              {t(
+                "Time is the same for everyone.\nWatches are not.",
+                "Время одинаково для каждого.\nЧасы — нет."
+              )}
+            </p>
+            <p className="text-[8px] font-mono text-zinc-800 tracking-[0.3em] uppercase">
+              Est. 2026
             </p>
           </div>
 
-          {/* Links */}
+          {/* Shop */}
           <div>
-            <p className="text-xs tracking-[0.25em] uppercase text-zinc-600 mb-6">
-              {t("Navigate", "Навигация")}
+            <p className="text-[8px] font-mono tracking-[0.35em] uppercase text-zinc-700 mb-4">
+              {t("Shop", "Каталог")}
             </p>
-            <ul className="space-y-3">
-              {navLinks.map((link) => (
-                <li key={link.href + link.en}>
-                  <Link href={link.href} className="text-sm text-zinc-400 hover:text-white transition-colors">
-                    {t(link.en, link.ru)}
+            <ul className="space-y-2.5">
+              {[
+                { href: "/shop", en: "All Watches", ru: "Все часы" },
+                { href: "/shop?category=custom", en: "Custom", ru: "Кастом" },
+                { href: "/shop?category=restored", en: "Restored", ru: "Реставрация" },
+                { href: "/shop?category=curated", en: "Curated", ru: "Подбор" },
+              ].map((l) => (
+                <li key={l.href + l.en}>
+                  <Link href={l.href} className="text-[10px] font-mono text-zinc-600 hover:text-white transition-colors tracking-wider">
+                    {t(l.en, l.ru)}
                   </Link>
                 </li>
               ))}
@@ -55,14 +49,34 @@ export default function Footer() {
 
           {/* Info */}
           <div>
-            <p className="text-xs tracking-[0.25em] uppercase text-zinc-600 mb-6">
-              {t("Information", "Информация")}
+            <p className="text-[8px] font-mono tracking-[0.35em] uppercase text-zinc-700 mb-4">
+              {t("Info", "Инфо")}
             </p>
-            <ul className="space-y-3">
-              {infoLinks.map((link) => (
-                <li key={link.href + link.en}>
-                  <Link href={link.href} className="text-sm text-zinc-400 hover:text-white transition-colors">
-                    {t(link.en, link.ru)}
+            <ul className="space-y-2.5">
+              {[
+                { href: "/about", en: "About", ru: "О нас" },
+                { href: "/contact", en: "Contact", ru: "Контакт" },
+                { href: "/contact", en: "Custom Order", ru: "Кастом-заказ" },
+              ].map((l) => (
+                <li key={l.href + l.en}>
+                  <Link href={l.href} className="text-[10px] font-mono text-zinc-600 hover:text-white transition-colors tracking-wider">
+                    {t(l.en, l.ru)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Brands */}
+          <div>
+            <p className="text-[8px] font-mono tracking-[0.35em] uppercase text-zinc-700 mb-4">
+              {t("Brands", "Бренды")}
+            </p>
+            <ul className="space-y-2.5">
+              {["Casio", "Seiko", "Orient", "Citizen"].map((b) => (
+                <li key={b}>
+                  <Link href={`/shop?brand=${b.toLowerCase()}`} className="text-[10px] font-mono text-zinc-600 hover:text-white transition-colors tracking-wider">
+                    {b}
                   </Link>
                 </li>
               ))}
@@ -70,13 +84,13 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom */}
-        <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <p className="text-xs text-zinc-700 tracking-wider">
-            © {new Date().getFullYear()} RE:DISTRICT. {t("All rights reserved.", "Все права защищены.")}
+        {/* Bottom bar */}
+        <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <p className="text-[8px] font-mono text-zinc-800 tracking-[0.3em] uppercase">
+            © {new Date().getFullYear()} RE:DISTRICT
           </p>
-          <p className="text-xs text-zinc-700 tracking-wider font-mono">
-            {t("Independent Watch Brand", "Независимый часовой бренд")} — Est. 2026
+          <p className="text-[8px] font-mono text-zinc-800 tracking-[0.3em] uppercase">
+            {t("Independent Watch Brand", "Независимый часовой бренд")}
           </p>
         </div>
       </div>

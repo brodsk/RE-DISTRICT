@@ -1,165 +1,174 @@
 "use client";
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { useLang } from "@/lib/lang";
 
-export default function HeroSection() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
+// Live clock hook
+function useClock() {
+  const [time, setTime] = useState<{ h: string; m: string; s: string; colon: boolean }>({
+    h: "--", m: "--", s: "--", colon: true,
   });
-  const { t } = useLang();
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setTime({
+        h: String(now.getHours()).padStart(2, "0"),
+        m: String(now.getMinutes()).padStart(2, "0"),
+        s: String(now.getSeconds()).padStart(2, "0"),
+        colon: now.getSeconds() % 2 === 0,
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+}
 
-  // Title morphs into nav on scroll
-  const titleScale = useTransform(scrollYProgress, [0, 0.32], [1, 0.085]);
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.28], [1, 0]);
-  const titleY = useTransform(scrollYProgress, [0, 0.32], ["0%", "-200%"]);
-  const contentOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
+export default function HeroSection() {
+  const { t } = useLang();
+  const clock = useClock();
 
   return (
     <section
-      ref={ref}
-      className="relative overflow-hidden bg-black"
+      className="relative flex flex-col bg-black overflow-hidden"
       style={{ height: "100svh", minHeight: "640px" }}
     >
-      {/* Background — using <img> for reliable mobile rendering */}
-      <img
-        src="https://images.unsplash.com/photo-1611170997960-a2631d0ec2e2?w=1200&q=80"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover object-center"
-        style={{ opacity: 0.32 }}
-        fetchPriority="high"
+      {/* Faint grid — device interface background texture */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
       />
 
-      {/* Gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
-
-      {/* Vertical side text — desktop only */}
+      {/* Top status bar — like a watch face */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.8, duration: 1.2 }}
-        style={{ opacity: contentOpacity }}
-        className="absolute left-8 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 z-10"
+        transition={{ duration: 0.6, delay: 0.2 }}
+        className="relative z-10 flex items-center justify-between px-6 md:px-12 pt-28 md:pt-32 pb-0"
       >
-        <div
-          style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-          className="flex items-center gap-3"
+        <span className="text-[9px] tracking-[0.45em] uppercase text-zinc-700 font-mono">
+          {t("Est. 2026", "Осн. 2026")}
+        </span>
+        <span className="text-[9px] tracking-[0.45em] uppercase text-zinc-700 font-mono">
+          {t("Custom · Restored · Curated", "Кастом · Реставрация · Подбор")}
+        </span>
+      </motion.div>
+
+      {/* ── MAIN CLOCK DISPLAY ── centred, device-like */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6">
+
+        {/* The big time display */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+          className="text-center mb-10 md:mb-12"
         >
-          <span className="w-px h-12 bg-white/20 inline-block" />
-          <span className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono">
-            {t("Independent Watch Brand", "Независимый часовой бренд")}
+          {/* HH:MM */}
+          <div
+            className="font-mono font-light text-white leading-none tracking-tight select-none tabular-nums"
+            style={{ fontSize: "clamp(4.5rem, 22vw, 16rem)", letterSpacing: "-0.02em" }}
+          >
+            {clock.h}
+            <span
+              className="inline-block transition-opacity duration-100"
+              style={{ opacity: clock.colon ? 1 : 0.15 }}
+            >
+              :
+            </span>
+            {clock.m}
+          </div>
+
+          {/* Seconds + timezone sub-display */}
+          <div className="flex items-center justify-center gap-6 mt-3 md:mt-4">
+            <span className="text-[11px] font-mono text-zinc-600 tabular-nums tracking-widest">
+              :{clock.s}
+            </span>
+            <span className="w-px h-3 bg-zinc-800" />
+            <span className="text-[9px] font-mono text-zinc-700 tracking-[0.3em] uppercase">
+              {Intl.DateTimeFormat().resolvedOptions().timeZone.split("/").pop()?.replace("_", " ") ?? "LOCAL"}
+            </span>
+            <span className="w-px h-3 bg-zinc-800" />
+            <span className="text-[9px] font-mono text-zinc-700 tracking-[0.3em] uppercase">
+              RE:DISTRICT
+            </span>
+          </div>
+        </motion.div>
+
+        {/* Horizontal rule — display separator */}
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          className="w-full max-w-md h-px bg-white/8 mb-10 md:mb-12 origin-center"
+        />
+
+        {/* Slogan — minimal, monospace */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.9 }}
+          className="text-center mb-12 md:mb-16"
+        >
+          <p className="text-[11px] md:text-xs font-mono tracking-[0.4em] uppercase text-zinc-500 mb-2">
+            {t("Rebuild your time.", "Переосмысли своё время.")}
+          </p>
+          <p className="text-[10px] font-mono text-zinc-700 tracking-[0.25em]">
+            {t("Time is the same for everyone. Watches are not.", "Время одинаково для каждого. Часы — нет.")}
+          </p>
+        </motion.div>
+
+        {/* CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 1.1 }}
+          className="flex flex-col sm:flex-row items-center gap-4"
+        >
+          <Link
+            href="/shop"
+            className="text-[10px] tracking-[0.4em] uppercase font-mono text-black bg-white hover:bg-zinc-200 px-8 py-3.5 transition-colors duration-200"
+          >
+            {t("Explore Watches", "Смотреть часы")}
+          </Link>
+          <Link
+            href="/about"
+            className="text-[10px] tracking-[0.4em] uppercase font-mono text-zinc-600 hover:text-white border border-white/10 hover:border-white/30 px-8 py-3.5 transition-all duration-200"
+          >
+            {t("About", "О нас")}
+          </Link>
+        </motion.div>
+      </div>
+
+      {/* Bottom status bar */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 1.4 }}
+        className="relative z-10 flex items-end justify-between px-6 md:px-12 pb-8 md:pb-10"
+      >
+        <div className="flex items-center gap-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse" />
+          <span className="text-[9px] font-mono text-zinc-700 tracking-[0.3em] uppercase">
+            {t("Casio · Seiko · Orient · Citizen", "Casio · Seiko · Orient · Citizen")}
           </span>
         </div>
-      </motion.div>
-
-      {/* ── HERO TITLE — absolute, vertically centred, shrinks into nav on scroll ── */}
-      <motion.div
-        style={{
-          scale: titleScale,
-          opacity: titleOpacity,
-          y: titleY,
-          transformOrigin: "left top",
-          position: "absolute",
-          // On mobile: sit a bit above centre so bottom content has space
-          top: "50%",
-          left: "1.5rem",
-          right: "1.5rem",
-          marginTop: "-2rem",       // nudge up slightly
-          zIndex: 20,
-        }}
-        className="md:!left-12 md:!right-auto"
-      >
-        <motion.h1
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
-          className="font-display font-light leading-[0.92] tracking-tight text-white select-none"
-          style={{
-            // Mobile: fit "DISTRICT" (widest word, italic) in ~390px viewport
-            // At 390px → 13.5vw ≈ 52px per char × 8 chars = 416px — too wide
-            // Use 12vw for mobile so italic DISTRICT fits safely
-            fontSize: "clamp(3.8rem, 12vw, 15rem)",
-          }}
-        >
-          RE:
-          <br />
-          <span className="italic">DISTRICT</span>
-        </motion.h1>
-      </motion.div>
-
-      {/* ── BOTTOM CONTENT (tagline + CTA) ── */}
-      <motion.div
-        style={{ opacity: contentOpacity }}
-        className="absolute bottom-0 left-0 right-0 z-10 px-6 md:px-12 pb-12 md:pb-20"
-      >
-        <div className="max-w-screen-xl mx-auto">
-          {/* Tag line */}
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
-            className="text-[9px] tracking-[0.35em] uppercase text-zinc-500 font-mono mb-5"
-          >
-            {t(
-              "Est. 2026 — Custom · Restored · Curated",
-              "Осн. 2026 — Кастом · Реставрация · Подбор"
-            )}
-          </motion.p>
-
-          {/* Slogan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.75, duration: 0.9 }}
-            className="mb-8"
-          >
-            <p className="text-lg md:text-2xl font-display font-light text-white/90 mb-1">
-              {t("Rebuild your time.", "Переосмысли своё время.")}
-            </p>
-            <p className="text-sm text-zinc-500 leading-relaxed font-light italic font-display">
-              {t("Time is the same for everyone.", "Время одинаково для каждого.")}
-              <br />
-              {t("Watches are not.", "Часы — нет.")}
-            </p>
-          </motion.div>
-
-          {/* CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.05, duration: 0.8 }}
-          >
-            <Link href="/shop" className="inline-flex items-center gap-4 group">
-              <span className="text-[11px] tracking-[0.3em] uppercase text-white border border-white/30 hover:border-white hover:bg-white hover:text-black px-7 py-3.5 transition-all duration-300 bg-black/30 backdrop-blur-sm">
-                {t("Explore Watches", "Смотреть часы")}
-              </span>
-              <span className="w-6 h-px bg-white/30 group-hover:w-12 group-hover:bg-white transition-all duration-300 hidden sm:block" />
-            </Link>
-          </motion.div>
-        </div>
-      </motion.div>
-
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2, duration: 1 }}
-        style={{ opacity: contentOpacity }}
-        className="absolute bottom-12 right-6 md:right-12 flex flex-col items-center gap-2 z-10"
-      >
         <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-          className="w-px h-10 bg-gradient-to-b from-white/40 to-transparent"
-        />
-        <span className="text-[8px] tracking-[0.3em] uppercase text-zinc-700 font-mono">
-          {t("Scroll", "Листать")}
-        </span>
+          animate={{ y: [0, 4, 0] }}
+          transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
+          className="flex flex-col items-center gap-1"
+        >
+          <div className="w-px h-5 bg-gradient-to-b from-white/20 to-transparent" />
+          <span className="text-[8px] font-mono text-zinc-800 tracking-[0.3em] uppercase">
+            {t("scroll", "листать")}
+          </span>
+        </motion.div>
       </motion.div>
     </section>
   );

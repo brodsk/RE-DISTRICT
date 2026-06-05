@@ -4,6 +4,7 @@ import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import CustomCursor from "@/components/ui/CustomCursor";
 import DynamicFavicon from "@/components/ui/DynamicFavicon";
+import LiveTitle from "@/components/ui/LiveTitle";
 import { LangProvider } from "@/lib/lang";
 
 export const metadata: Metadata = {
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="en" className="bg-black">
       <body className="bg-black text-white antialiased overflow-x-hidden">
         <LangProvider>
+          <LiveTitle />
           <DynamicFavicon />
           <CustomCursor />
           <Navigation />
