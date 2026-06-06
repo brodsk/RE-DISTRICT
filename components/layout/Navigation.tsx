@@ -1,8 +1,8 @@
 "use client";
-import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/lib/lang";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 
 const navLinks = [
@@ -11,48 +11,12 @@ const navLinks = [
   { href: "/contact", labelEn: "Contact", labelRu: "Контакт" },
 ];
 
-// Logo cycles: time → "RE:DISTRICT" → time → …
-// Shows time for 8s, brand for 4s
-function useLiveLogo() {
-  const [colonOn, setColonOn] = useState(true);
-  const [h, setH] = useState("--");
-  const [m, setM] = useState("--");
-  const [showBrand, setShowBrand] = useState(false);
-
-  useEffect(() => {
-    // Tick every second — update time + blink colon
-    const interval = setInterval(() => {
-      const now = new Date();
-      setH(String(now.getHours()).padStart(2, "0"));
-      setM(String(now.getMinutes()).padStart(2, "0"));
-      setColonOn((prev) => !prev);
-    }, 1000);
-
-    // Cycle: 8s time, 4s brand, repeat
-    const cycle = () => {
-      setShowBrand(false);
-      const t1 = setTimeout(() => setShowBrand(true), 8000);
-      const t2 = setTimeout(() => {
-        setShowBrand(false);
-        cycle();
-      }, 12000); // 8 + 4
-      return () => { clearTimeout(t1); clearTimeout(t2); };
-    };
-    const cleanup = cycle();
-
-    return () => { clearInterval(interval); cleanup(); };
-  }, []);
-
-  return { h, m, colonOn, showBrand };
-}
-
 export default function Navigation() {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { lang, setLang, t } = useLang();
-  const router = useRouter();
+  const [scrolled, setScrolled]   = useState(false);
+  const [menuOpen, setMenuOpen]   = useState(false);
+  const { lang, setLang, t }      = useLang();
+  const router   = useRouter();
   const pathname = usePathname();
-  const logo = useLiveLogo();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -60,7 +24,7 @@ export default function Navigation() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleLogoClick = (e: React.MouseEvent) => {
+  const handleHome = (e: React.MouseEvent) => {
     e.preventDefault();
     if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" });
     else router.push("/");
@@ -68,53 +32,18 @@ export default function Navigation() {
 
   return (
     <>
+      {/* ── Header: NO logo, only nav links + lang switcher ── */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "py-3 bg-black/95 backdrop-blur-md border-b border-white/5"
-            : "py-5 md:py-6 bg-transparent"
+          scrolled ? "py-3 bg-black/95 backdrop-blur-md border-b border-white/5" : "py-5 md:py-6"
         }`}
       >
         <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between">
 
-          {/* ── Logo: live clock ↔ brand mark ── */}
-          <a href="/" onClick={handleLogoClick} className="flex items-center group" aria-label="RE:DISTRICT — Home">
-            <div className="overflow-hidden h-6 flex items-center">
-              <AnimatePresence mode="wait" initial={false}>
-                {!logo.showBrand ? (
-                  <motion.span
-                    key="clock"
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ duration: 0.3 }}
-                    className="font-mono text-base text-white tracking-tight tabular-nums group-hover:text-zinc-400 transition-colors"
-                  >
-                    {logo.h}
-                    <span
-                      className="inline-block transition-opacity duration-75"
-                      style={{ opacity: logo.colonOn ? 1 : 0.15 }}
-                    >:
-                    </span>
-                    {logo.m}
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="brand"
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ duration: 0.3 }}
-                    className="font-mono text-xs tracking-[0.22em] uppercase text-white group-hover:text-zinc-400 transition-colors"
-                  >
-                    RE:DISTRICT
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </div>
-          </a>
+          {/* LEFT — invisible spacer so nav stays centred on desktop */}
+          <div className="w-20 hidden md:block" />
 
-          {/* Desktop Nav */}
+          {/* CENTRE — nav links (desktop) */}
           <nav className="hidden md:flex items-center gap-10">
             {navLinks.map((link) => (
               <Link
@@ -127,7 +56,7 @@ export default function Navigation() {
             ))}
           </nav>
 
-          {/* Right: lang switcher */}
+          {/* RIGHT — lang switcher */}
           <div className="hidden md:flex items-center">
             <div className="flex items-center border border-white/10">
               <button
@@ -145,8 +74,8 @@ export default function Navigation() {
             </div>
           </div>
 
-          {/* Mobile: lang + burger */}
-          <div className="md:hidden flex items-center gap-4">
+          {/* MOBILE — lang + burger (no logo) */}
+          <div className="md:hidden flex items-center gap-4 w-full justify-between">
             <div className="flex items-center border border-white/10">
               <button
                 onClick={() => setLang("en")}
@@ -171,58 +100,54 @@ export default function Navigation() {
               <span className={`block w-full h-px bg-white transition-all duration-300 origin-center ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
             </button>
           </div>
+
         </div>
       </header>
 
-      {/* Mobile full-screen menu */}
+      {/* Mobile full-screen menu — no logo here either */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.2 }}
             className="fixed inset-0 z-40 bg-black flex flex-col"
           >
-            {/* Menu header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-              <span className="font-mono text-xs tracking-[0.3em] uppercase text-zinc-600">
-                RE:DISTRICT
-              </span>
-              <button onClick={() => setMenuOpen(false)} className="text-zinc-500 text-xs font-mono tracking-widest hover:text-white transition-colors">
+            <div className="flex items-center justify-end px-6 py-5 border-b border-white/5">
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
+              >
                 {t("CLOSE", "ЗАКРЫТЬ")}
               </button>
             </div>
 
-            {/* Links */}
             <div className="flex-1 flex flex-col justify-center px-6 gap-1">
               {navLinks.map((link, i) => (
                 <motion.div
                   key={link.href}
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.06 + 0.1 }}
+                  transition={{ delay: i * 0.06 + 0.05 }}
                 >
                   <Link
                     href={link.href}
                     onClick={() => setMenuOpen(false)}
                     className="block py-5 border-b border-white/5 group"
                   >
-                    <span className="text-4xl font-light text-white group-hover:text-zinc-400 transition-colors" style={{ fontFamily: "var(--font-display, serif)" }}>
+                    <span className="text-4xl font-light text-white group-hover:text-zinc-400 transition-colors"
+                      style={{ fontFamily: "var(--font-display, serif)" }}>
                       {t(link.labelEn, link.labelRu)}
-                    </span>
-                    <span className="text-[9px] font-mono text-zinc-700 tracking-[0.3em] ml-1 uppercase">
-                      0{i + 1}
                     </span>
                   </Link>
                 </motion.div>
               ))}
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-8 border-t border-white/5">
-              <p className="text-[9px] font-mono text-zinc-700 tracking-[0.35em] uppercase">
-                {t("Casio · Seiko · Orient · Citizen", "Casio · Seiko · Orient · Citizen")}
+              <p className="text-[8px] font-mono text-zinc-800 tracking-[0.35em] uppercase">
+                Casio · Seiko · Orient · Citizen
               </p>
             </div>
           </motion.div>
