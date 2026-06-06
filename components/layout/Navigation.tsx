@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/lib/lang";
 import Link from "next/link";
@@ -11,12 +11,108 @@ const navLinks = [
   { href: "/contact", labelEn: "Contact", labelRu: "Контакт" },
 ];
 
+// ─── Logo display modes (mirrors HeroSection, but nav-compact) ────────────────
+type NavMode = "brand" | "clock" | "glitch";
+
+const BRAND_MS  = 10_000;
+const CLOCK_MS  = 20_000;
+const GLITCH_MS =  5_000;
+const EASTER_MS =  5 * 60_000;
+
+// Uses the same second-parity rule so logo colon is in sync with hero colon.
+function useNavClock() {
+  const [mode,  setMode]  = useState<NavMode>("brand");
+  const [colon, setColon] = useState(true);
+  const [h, setH]         = useState("--");
+  const [m, setM]         = useState("--");
+
+  const modeRef   = useRef<NavMode>("brand");
+  const modeStart = useRef(Date.now());
+  const easterRef = useRef(Date.now());
+
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const d   = new Date();
+
+      setColon(d.getSeconds() % 2 === 0);
+      setH(String(d.getHours()).padStart(2, "0"));
+      setM(String(d.getMinutes()).padStart(2, "0"));
+
+      if (modeRef.current !== "glitch" && now - easterRef.current >= EASTER_MS) {
+        easterRef.current = now;
+        modeRef.current   = "glitch";
+        modeStart.current = now;
+        setMode("glitch");
+        return;
+      }
+
+      const elapsed = now - modeStart.current;
+      if (modeRef.current === "glitch" && elapsed >= GLITCH_MS) {
+        modeRef.current = "brand"; modeStart.current = now; setMode("brand");
+      } else if (modeRef.current === "brand" && elapsed >= BRAND_MS) {
+        modeRef.current = "clock"; modeStart.current = now; setMode("clock");
+      } else if (modeRef.current === "clock" && elapsed >= CLOCK_MS) {
+        modeRef.current = "brand"; modeStart.current = now; setMode("brand");
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return { mode, colon, h, m };
+}
+
+// ─── Logo: 3-column grid — left | colon | right ───────────────────────────────
+// The colon column is fixed-width (1 character) and sits at the flex centre.
+// Left side is right-aligned, right side is left-aligned.
+// No layout shift when text changes length.
+
+interface LogoContentProps {
+  left:  string;
+  right: string;
+  colon: boolean;
+  size?: string;
+}
+
+function LogoContent({ left, right, colon, size = "inherit" }: LogoContentProps) {
+  return (
+    // overflow-hidden keeps the logo from expanding nav height
+    <span
+      className="inline-grid items-baseline font-mono font-light text-white tracking-tight select-none"
+      style={{
+        gridTemplateColumns: "1fr auto 1fr",
+        fontSize: size,
+        letterSpacing: "-0.01em",
+        lineHeight: 1,
+      }}
+    >
+      <span className="text-right whitespace-nowrap">{left}</span>
+      <span
+        style={{
+          opacity: colon ? 1 : 0.1,
+          transition: "opacity 60ms steps(1)",
+          padding: "0 0.03em",
+        }}
+      >
+        :
+      </span>
+      <span className="text-left whitespace-nowrap">{right}</span>
+    </span>
+  );
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+
 export default function Navigation() {
-  const [scrolled, setScrolled]   = useState(false);
-  const [menuOpen, setMenuOpen]   = useState(false);
+  const [scrolled,  setScrolled]  = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
   const { lang, setLang, t }      = useLang();
   const router   = useRouter();
   const pathname = usePathname();
+  const { mode, colon, h, m }     = useNavClock();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -30,21 +126,58 @@ export default function Navigation() {
     else router.push("/");
   };
 
+  // Logo content based on current mode
+  const logoNode = (
+    <AnimatePresence mode="wait">
+      <motion.span
+        key={mode}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "linear" }}
+        className="block"
+      >
+        {mode === "brand" && (
+          <LogoContent left="RE" right="DISTRICT" colon={colon} />
+        )}
+        {mode === "clock" && (
+          <LogoContent left={h} right={m} colon={colon} />
+        )}
+        {mode === "glitch" && (
+          <LogoContent
+            left="rE"
+            right="d15tr1Ct"
+            colon={colon}
+          />
+        )}
+      </motion.span>
+    </AnimatePresence>
+  );
+
   return (
     <>
-      {/* ── Header: NO logo, only nav links + lang switcher ── */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled ? "py-3 bg-black/95 backdrop-blur-md border-b border-white/5" : "py-5 md:py-6"
+          scrolled
+            ? "py-3 bg-black/95 backdrop-blur-md border-b border-white/5"
+            : "py-5 md:py-6"
         }`}
       >
-        <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between">
+        <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between gap-6">
 
-          {/* LEFT — invisible spacer so nav stays centred on desktop */}
-          <div className="w-20 hidden md:block" />
+          {/* ── LOGO (left) ── */}
+          <a
+            href="/"
+            onClick={handleHome}
+            className="shrink-0 text-[13px] md:text-[15px] hover:opacity-60 transition-opacity duration-200"
+            style={{ minWidth: "8rem" }}  // prevents nav jump when switching modes
+            aria-label="RE:DISTRICT home"
+          >
+            {logoNode}
+          </a>
 
-          {/* CENTRE — nav links (desktop) */}
-          <nav className="hidden md:flex items-center gap-10">
+          {/* ── Desktop nav (centre) ── */}
+          <nav className="hidden md:flex items-center gap-10 flex-1 justify-center">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -56,8 +189,8 @@ export default function Navigation() {
             ))}
           </nav>
 
-          {/* RIGHT — lang switcher */}
-          <div className="hidden md:flex items-center">
+          {/* ── Lang + (desktop) ── */}
+          <div className="hidden md:flex items-center shrink-0">
             <div className="flex items-center border border-white/10">
               <button
                 onClick={() => setLang("en")}
@@ -74,8 +207,8 @@ export default function Navigation() {
             </div>
           </div>
 
-          {/* MOBILE — lang + burger (no logo) */}
-          <div className="md:hidden flex items-center gap-4 w-full justify-between">
+          {/* ── Mobile: lang + burger ── */}
+          <div className="md:hidden flex items-center gap-3 shrink-0">
             <div className="flex items-center border border-white/10">
               <button
                 onClick={() => setLang("en")}
@@ -104,7 +237,7 @@ export default function Navigation() {
         </div>
       </header>
 
-      {/* Mobile full-screen menu — no logo here either */}
+      {/* Mobile menu */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -114,7 +247,10 @@ export default function Navigation() {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-40 bg-black flex flex-col"
           >
-            <div className="flex items-center justify-end px-6 py-5 border-b border-white/5">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+              <span className="text-[13px] font-mono font-light text-white">
+                <LogoContent left="RE" right="DISTRICT" colon={colon} />
+              </span>
               <button
                 onClick={() => setMenuOpen(false)}
                 className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
@@ -136,8 +272,10 @@ export default function Navigation() {
                     onClick={() => setMenuOpen(false)}
                     className="block py-5 border-b border-white/5 group"
                   >
-                    <span className="text-4xl font-light text-white group-hover:text-zinc-400 transition-colors"
-                      style={{ fontFamily: "var(--font-display, serif)" }}>
+                    <span
+                      className="text-4xl font-light text-white group-hover:text-zinc-400 transition-colors"
+                      style={{ fontFamily: "var(--font-display, serif)" }}
+                    >
                       {t(link.labelEn, link.labelRu)}
                     </span>
                   </Link>
