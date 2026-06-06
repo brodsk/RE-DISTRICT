@@ -111,36 +111,47 @@ interface DisplayProps {
 function Display({ left, right, colon }: DisplayProps) {
   return (
     <div
-      className="w-full grid items-baseline select-none"
+      className="w-full grid select-none"
       style={{
-        // ── Shared values — never change between modes ──
+        // Symmetric horizontal padding — same on both sides, colon stays centred
         gridTemplateColumns : "1fr auto 1fr",
+        paddingLeft         : "clamp(1rem, 4vw, 4rem)",
+        paddingRight        : "clamp(1rem, 4vw, 4rem)",
         fontSize            : "clamp(3rem, 13.5vw, 13rem)",
         fontFamily          : "var(--font-mono, ui-monospace, monospace)",
         fontWeight          : 300,
         letterSpacing       : "-0.02em",
         lineHeight          : 1,
+        alignItems          : "center",
       }}
     >
       {/* Left — right-aligned, grows leftward from colon */}
-      <span className="text-right text-white tabular-nums whitespace-nowrap">
+      <span
+        className="text-white tabular-nums whitespace-nowrap"
+        style={{ textAlign: "right" }}
+      >
         {left}
       </span>
 
-      {/* Colon — fixed auto column, always at grid centre */}
+      {/* Colon — auto-width column, always sits at the grid midpoint */}
       <span
         className="text-white"
         style={{
           opacity    : colon ? 1 : 0.1,
           transition : "opacity 60ms steps(1)",
           padding    : "0 0.05em",
+          display    : "block",
+          textAlign  : "center",
         }}
       >
         :
       </span>
 
       {/* Right — left-aligned, grows rightward from colon */}
-      <span className="text-left text-white tabular-nums whitespace-nowrap">
+      <span
+        className="text-white tabular-nums whitespace-nowrap"
+        style={{ textAlign: "left" }}
+      >
         {right}
       </span>
     </div>
@@ -176,7 +187,7 @@ export default function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="relative z-10 flex items-center justify-between px-6 md:px-12 pt-24 md:pt-28"
+        className="relative z-10 flex items-center justify-between px-6 md:px-12 pt-10 md:pt-12"
       >
         <span className="text-[9px] tracking-[0.45em] uppercase text-zinc-700 font-mono">
           {t("Est. 2026", "Осн. 2026")}
@@ -187,14 +198,20 @@ export default function HeroSection() {
       </motion.div>
 
       {/* ── Centre display area ── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 md:px-8">
+      {/*
+        The display container must span the FULL viewport width so that
+        the CSS grid (1fr : auto : 1fr) centres its colon on the true
+        viewport midpoint — not on a constrained max-w box.
+        flex-1 + flex-col + items-stretch achieves this.
+      */}
+      <div className="relative z-10 flex-1 flex flex-col items-stretch justify-center">
 
-        {/* ── SINGLE DISPLAY CONTAINER — identical for all modes ── */}
+        {/* ── SINGLE DISPLAY CONTAINER — full width, identical for all 3 modes ── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-          className="w-full max-w-[820px] mb-6 md:mb-8"
+          className="w-full mb-6 md:mb-8"
         >
           <AnimatePresence mode="wait">
             <motion.div
@@ -210,8 +227,8 @@ export default function HeroSection() {
         </motion.div>
 
         {/* ── Sub-display: seconds + city + system tag ── */}
-        {/* Fixed height so the layout below never shifts */}
-        <div className="h-[20px] flex items-center justify-center mb-6 md:mb-8">
+        {/* Fixed height — always reserves space, nothing below ever shifts */}
+        <div className="w-full h-[20px] flex items-center justify-center mb-6 md:mb-8">
           <AnimatePresence mode="wait">
             {mode === "clock" ? (
               <motion.div
@@ -235,12 +252,7 @@ export default function HeroSection() {
                 </span>
               </motion.div>
             ) : (
-              <motion.div
-                key="sub-off"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0 }}
-                exit={{ opacity: 0 }}
-              />
+              <motion.div key="sub-off" initial={{ opacity: 0 }} animate={{ opacity: 0 }} exit={{ opacity: 0 }} />
             )}
           </AnimatePresence>
         </div>
@@ -250,7 +262,7 @@ export default function HeroSection() {
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
           transition={{ duration: 0.8, delay: 0.7 }}
-          className="w-full max-w-md h-px bg-white/6 mb-7 md:mb-9 origin-center"
+          className="w-full max-w-md h-px bg-white/6 mb-7 md:mb-9 origin-center mx-auto"
         />
 
         {/* Slogan */}
@@ -276,7 +288,7 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 1.1 }}
-          className="flex flex-col sm:flex-row items-center gap-4"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link
             href="/shop"
