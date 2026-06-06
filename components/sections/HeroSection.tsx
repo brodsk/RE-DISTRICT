@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLang } from "@/lib/lang";
 
-// ─── Types & constants ────────────────────────────────────────────────────────
+// ─── Types & constants ─────────────────────────────────────────────────────────
 
 type Mode = "brand" | "clock" | "glitch";
 
@@ -13,20 +13,19 @@ const CLOCK_MS  = 20_000;
 const GLITCH_MS =  5_000;
 const EASTER_MS =  5 * 60_000;
 
-// ─── City from timezone ───────────────────────────────────────────────────────
-// Parses Intl timezone string (e.g. "Europe/New_York" → "New York")
+// ─── Timezone → city name ──────────────────────────────────────────────────────
 
 function getCity(): string {
   try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; // e.g. "Europe/Moscow"
+    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone; // "Europe/Moscow"
     const raw = tz.split("/").pop() ?? "LOCAL";
-    return raw.replace(/_/g, " "); // "New_York" → "New York"
+    return raw.replace(/_/g, " ");                                // "New_York" → "New York"
   } catch {
     return "LOCAL";
   }
 }
 
-// ─── Single global clock hook (one interval, all state) ───────────────────────
+// ─── Clock state hook ──────────────────────────────────────────────────────────
 
 function useClockState() {
   const [mode,  setMode]  = useState<Mode>("brand");
@@ -41,22 +40,17 @@ function useClockState() {
   const easterRef  = useRef(Date.now());
 
   useEffect(() => {
-    // Get city once (client-only)
     setCity(getCity());
 
     const tick = () => {
       const now = Date.now();
       const d   = new Date();
 
-      // ── Colon alternates every tick ──
       setColon(d.getSeconds() % 2 === 0);
-
-      // ── Time values ──
       setH(String(d.getHours()).padStart(2, "0"));
       setM(String(d.getMinutes()).padStart(2, "0"));
       setS(String(d.getSeconds()).padStart(2, "0"));
 
-      // ── Easter egg ──
       if (modeRef.current !== "glitch" && now - easterRef.current >= EASTER_MS) {
         easterRef.current = now;
         modeRef.current   = "glitch";
@@ -65,15 +59,10 @@ function useClockState() {
         return;
       }
 
-      // ── State machine ──
       const elapsed = now - modeStart.current;
-      if (modeRef.current === "glitch" && elapsed >= GLITCH_MS) {
-        modeRef.current = "brand"; modeStart.current = now; setMode("brand");
-      } else if (modeRef.current === "brand" && elapsed >= BRAND_MS) {
-        modeRef.current = "clock"; modeStart.current = now; setMode("clock");
-      } else if (modeRef.current === "clock" && elapsed >= CLOCK_MS) {
-        modeRef.current = "brand"; modeStart.current = now; setMode("brand");
-      }
+      if      (modeRef.current === "glitch" && elapsed >= GLITCH_MS) { modeRef.current = "brand"; modeStart.current = now; setMode("brand"); }
+      else if (modeRef.current === "brand"  && elapsed >= BRAND_MS)  { modeRef.current = "clock"; modeStart.current = now; setMode("clock"); }
+      else if (modeRef.current === "clock"  && elapsed >= CLOCK_MS)  { modeRef.current = "brand"; modeStart.current = now; setMode("brand"); }
     };
 
     tick();
@@ -84,90 +73,77 @@ function useClockState() {
   return { mode, colon, h, m, s, city };
 }
 
-// ─── Colon — always centred, never shifts layout ──────────────────────────────
-//
-// Strategy: CSS Grid with 3 columns [1fr auto 1fr]
-//   col 1 = right-aligned left side
-//   col 2 = the colon (fixed width, never moves)
-//   col 3 = left-aligned right side
-// The colon pixel stays at the horizontal centre of the viewport at all times.
+// ─── Content per mode ──────────────────────────────────────────────────────────
+// Each mode returns { left, right } strings only.
+// The single shared renderer below handles all sizing/centering.
 
-interface SplitProps {
-  left:   React.ReactNode;
-  right:  React.ReactNode;
-  colon:  boolean;
-  size:   string;        // font-size (clamp string)
-  dimRatio?: number;     // opacity when colon off (default 0.12)
+interface Sides { left: string; right: string }
+
+function getSides(mode: Mode, h: string, m: string): Sides {
+  switch (mode) {
+    case "clock":  return { left: h,    right: m          };
+    case "glitch": return { left: "rE", right: "d15tr1Ct" };
+    default:       return { left: "RE", right: "DISTRICT" };
+  }
 }
 
-function ColonCentered({ left, right, colon, size, dimRatio = 0.12 }: SplitProps) {
+// ─── THE SINGLE DISPLAY RENDERER ───────────────────────────────────────────────
+//
+// ALL three states share:
+//   • identical outer container  (w-full max-w-[820px])
+//   • identical CSS grid         (1fr auto 1fr)
+//   • identical font-size        (clamp)
+//   • identical font-weight / family / tracking
+//
+// Only the LEFT and RIGHT string content changes.
+// The colon column is always auto-width, always at grid centre → viewport centre.
+//
+// Font-size is deliberately unified. Clock digits are wider characters;
+// brand text is narrower. The grid absorbs that naturally — left/right
+// columns grow/shrink symmetrically, colon never moves.
+
+interface DisplayProps {
+  left:   string;
+  right:  string;
+  colon:  boolean;
+}
+
+function Display({ left, right, colon }: DisplayProps) {
   return (
     <div
       className="w-full grid items-baseline select-none"
       style={{
-        gridTemplateColumns: "1fr auto 1fr",
-        fontSize: size,
-        fontFamily: "var(--font-mono, monospace)",
-        fontWeight: 300,
-        letterSpacing: "-0.02em",
-        lineHeight: 1,
+        // ── Shared values — never change between modes ──
+        gridTemplateColumns : "1fr auto 1fr",
+        fontSize            : "clamp(3rem, 13.5vw, 13rem)",
+        fontFamily          : "var(--font-mono, ui-monospace, monospace)",
+        fontWeight          : 300,
+        letterSpacing       : "-0.02em",
+        lineHeight          : 1,
       }}
     >
-      {/* Left — right-aligned */}
-      <span className="text-right text-white tabular-nums">{left}</span>
+      {/* Left — right-aligned, grows leftward from colon */}
+      <span className="text-right text-white tabular-nums whitespace-nowrap">
+        {left}
+      </span>
 
-      {/* Colon — always centred, fixed width */}
+      {/* Colon — fixed auto column, always at grid centre */}
       <span
+        className="text-white"
         style={{
-          opacity: colon ? 1 : dimRatio,
-          transition: "opacity 60ms steps(1)",
-          padding: "0 0.04em",
-          color: "#fff",
+          opacity    : colon ? 1 : 0.1,
+          transition : "opacity 60ms steps(1)",
+          padding    : "0 0.05em",
         }}
       >
         :
       </span>
 
-      {/* Right — left-aligned */}
-      <span className="text-left text-white tabular-nums">{right}</span>
+      {/* Right — left-aligned, grows rightward from colon */}
+      <span className="text-left text-white tabular-nums whitespace-nowrap">
+        {right}
+      </span>
     </div>
-  );
-}
-
-// ─── Display modes ────────────────────────────────────────────────────────────
-
-function BrandDisplay({ colon }: { colon: boolean }) {
-  return (
-    <ColonCentered
-      left="RE"
-      right="DISTRICT"
-      colon={colon}
-      size="clamp(2.4rem, 10.5vw, 10rem)"
-      dimRatio={0.1}
-    />
-  );
-}
-
-function ClockDisplay({ h, m, colon }: { h: string; m: string; colon: boolean }) {
-  return (
-    <ColonCentered
-      left={h}
-      right={m}
-      colon={colon}
-      size="clamp(4.5rem, 20vw, 16rem)"
-    />
-  );
-}
-
-function GlitchDisplay({ colon }: { colon: boolean }) {
-  return (
-    <ColonCentered
-      left="rE"
-      right="d15tr1Ct"
-      colon={colon}
-      size="clamp(1.5rem, 6.5vw, 7rem)"
-      dimRatio={0.1}
-    />
   );
 }
 
@@ -177,12 +153,14 @@ export default function HeroSection() {
   const { t } = useLang();
   const { mode, colon, h, m, s, city } = useClockState();
 
+  const { left, right } = getSides(mode, h, m);
+
   return (
     <section
       className="relative flex flex-col bg-black overflow-hidden"
       style={{ height: "100svh", minHeight: "620px" }}
     >
-      {/* Subtle grid texture — device interface feel */}
+      {/* Background grid — device interface texture */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -208,15 +186,15 @@ export default function HeroSection() {
         </span>
       </motion.div>
 
-      {/* ── Centre display ── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 md:px-12">
+      {/* ── Centre display area ── */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 md:px-8">
 
-        {/* Main display — colon always centred */}
+        {/* ── SINGLE DISPLAY CONTAINER — identical for all modes ── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-          className="w-full max-w-[900px] mb-8 md:mb-10"
+          className="w-full max-w-[820px] mb-6 md:mb-8"
         >
           <AnimatePresence mode="wait">
             <motion.div
@@ -224,38 +202,30 @@ export default function HeroSection() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22, ease: "linear" }}
+              transition={{ duration: 0.2, ease: "linear" }}
             >
-              {mode === "brand"  && <BrandDisplay colon={colon} />}
-              {mode === "clock"  && <ClockDisplay h={h} m={m} colon={colon} />}
-              {mode === "glitch" && <GlitchDisplay colon={colon} />}
+              <Display left={left} right={right} colon={colon} />
             </motion.div>
           </AnimatePresence>
         </motion.div>
 
-        {/* Sub-display: seconds + city — only in clock mode, fade in/out */}
-        <motion.div
-          className="flex items-center justify-center gap-5 mb-8 md:mb-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
+        {/* ── Sub-display: seconds + city + system tag ── */}
+        {/* Fixed height so the layout below never shifts */}
+        <div className="h-[20px] flex items-center justify-center mb-6 md:mb-8">
           <AnimatePresence mode="wait">
-            {mode === "clock" && (
+            {mode === "clock" ? (
               <motion.div
-                key="sub"
+                key="sub-on"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
                 className="flex items-center gap-4"
               >
-                {/* Seconds */}
                 <span className="text-[11px] font-mono text-zinc-600 tabular-nums tracking-widest">
                   :{s}
                 </span>
                 <span className="w-px h-3 bg-zinc-800" />
-                {/* Dynamic city */}
                 <span className="text-[9px] font-mono text-zinc-700 tracking-[0.3em] uppercase">
                   {city}
                 </span>
@@ -264,26 +234,23 @@ export default function HeroSection() {
                   RE:DISTRICT
                 </span>
               </motion.div>
-            )}
-            {mode !== "clock" && (
+            ) : (
               <motion.div
-                key="nosub"
+                key="sub-off"
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                animate={{ opacity: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="h-[18px]" // same height as sub-display, keeps layout stable
               />
             )}
           </AnimatePresence>
-        </motion.div>
+        </div>
 
         {/* Separator */}
         <motion.div
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
           transition={{ duration: 0.8, delay: 0.7 }}
-          className="w-full max-w-md h-px bg-white/6 mb-8 md:mb-10 origin-center"
+          className="w-full max-w-md h-px bg-white/6 mb-7 md:mb-9 origin-center"
         />
 
         {/* Slogan */}
@@ -291,7 +258,7 @@ export default function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.7, delay: 0.9 }}
-          className="text-center mb-10 md:mb-12"
+          className="text-center mb-9 md:mb-11"
         >
           <p className="text-[11px] md:text-xs font-mono tracking-[0.4em] uppercase text-zinc-500 mb-2">
             {t("Rebuild your time.", "Переосмысли своё время.")}
@@ -304,7 +271,7 @@ export default function HeroSection() {
           </p>
         </motion.div>
 
-        {/* CTA buttons */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -313,13 +280,15 @@ export default function HeroSection() {
         >
           <Link
             href="/shop"
-            className="text-[10px] tracking-[0.4em] uppercase font-mono text-black bg-white hover:bg-zinc-200 px-8 py-3.5 transition-colors duration-200"
+            className="text-[10px] tracking-[0.4em] uppercase font-mono text-black bg-white
+                       hover:bg-zinc-200 px-8 py-3.5 transition-colors duration-200"
           >
             {t("Explore Watches", "Смотреть часы")}
           </Link>
           <Link
             href="/about"
-            className="text-[10px] tracking-[0.4em] uppercase font-mono text-zinc-600 hover:text-white border border-white/10 hover:border-white/30 px-8 py-3.5 transition-all duration-200"
+            className="text-[10px] tracking-[0.4em] uppercase font-mono text-zinc-600 hover:text-white
+                       border border-white/10 hover:border-white/30 px-8 py-3.5 transition-all duration-200"
           >
             {t("About", "О нас")}
           </Link>
