@@ -39,38 +39,35 @@ export default function Navigation() {
             : "py-5 md:py-6"
         }`}
       >
-        <div className="w-full px-6 md:px-12 flex items-center justify-between gap-6">
+        <div className="w-full px-6 md:px-12 flex items-center justify-between gap-4 md:gap-6">
 
-          {/* ── Desktop nav (left side) ── */}
-          <nav className="hidden md:flex items-center gap-10">
+          {/* ── Desktop nav (centered) ── */}
+          <nav className="hidden md:flex items-center gap-10 flex-1 justify-center">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 className="text-[10px] tracking-[0.3em] uppercase font-mono
-                           text-zinc-500 hover:text-white transition-colors duration-200"
+                           text-zinc-500 hover:text-white transition-colors duration-200 whitespace-nowrap"
               >
                 {t(link.labelEn, link.labelRu)}
               </Link>
             ))}
           </nav>
 
-          {/* Spacer for desktop */}
-          <div className="hidden md:flex flex-1" />
-
           {/* ── Language switcher (right side) ── */}
-          <div className="hidden md:flex items-center shrink-0">
+          <div className="flex items-center shrink-0">
             <div className="flex items-center border border-white/10">
               <button
                 onClick={() => setLang("en")}
-                className={`text-[9px] tracking-[0.2em] uppercase font-mono px-3 py-2
+                className={`text-[8px] md:text-[9px] tracking-[0.2em] uppercase font-mono px-2 md:px-3 py-1.5 md:py-2
                             transition-all duration-150 ${
                   lang === "en" ? "bg-white text-black" : "text-zinc-600 hover:text-white"
                 }`}
               >EN</button>
               <button
                 onClick={() => setLang("ru")}
-                className={`text-[9px] tracking-[0.2em] uppercase font-mono px-3 py-2
+                className={`text-[8px] md:text-[9px] tracking-[0.2em] uppercase font-mono px-2 md:px-3 py-1.5 md:py-2
                             transition-all duration-150 ${
                   lang === "ru" ? "bg-white text-black" : "text-zinc-600 hover:text-white"
                 }`}
@@ -78,37 +75,19 @@ export default function Navigation() {
             </div>
           </div>
 
-          {/* ── Mobile: lang + burger ── */}
-          <div className="md:hidden flex items-center gap-3 shrink-0 ml-auto">
-            <div className="flex items-center border border-white/10">
-              <button
-                onClick={() => setLang("en")}
-                className={`text-[8px] tracking-wider uppercase font-mono px-2.5 py-1.5
-                            transition-all ${
-                  lang === "en" ? "bg-white text-black" : "text-zinc-600"
-                }`}
-              >EN</button>
-              <button
-                onClick={() => setLang("ru")}
-                className={`text-[8px] tracking-wider uppercase font-mono px-2.5 py-1.5
-                            transition-all ${
-                  lang === "ru" ? "bg-white text-black" : "text-zinc-600"
-                }`}
-              >RU</button>
-            </div>
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="flex flex-col justify-center gap-[5px] w-6 h-6"
-              aria-label="Menu"
-            >
-              <span className={`block w-full h-px bg-white transition-all duration-300 origin-center
-                               ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
-              <span className={`block w-full h-px bg-white transition-all duration-300
-                               ${menuOpen ? "opacity-0 scale-x-0" : ""}`} />
-              <span className={`block w-full h-px bg-white transition-all duration-300 origin-center
-                               ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
-            </button>
-          </div>
+          {/* ── Mobile: burger ── */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden flex flex-col justify-center gap-[5px] w-6 h-6 shrink-0"
+            aria-label="Menu"
+          >
+            <span className={`block w-full h-px bg-white transition-all duration-300 origin-center
+                             ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
+            <span className={`block w-full h-px bg-white transition-all duration-300
+                             ${menuOpen ? "opacity-0 scale-x-0" : ""}`} />
+            <span className={`block w-full h-px bg-white transition-all duration-300 origin-center
+                             ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+          </button>
 
         </div>
       </header>
