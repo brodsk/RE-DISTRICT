@@ -85,7 +85,7 @@ function getSides(mode: Mode, h: string, m: string): Sides {
   }
 }
 
-// ─── DISPLAY RENDERER — Perfect centering on all screens ───────────────────
+// ─── DISPLAY RENDERER — Perfect centering ───────────────────────────────────
 
 interface DisplayProps {
   left:   string;
@@ -96,57 +96,50 @@ interface DisplayProps {
 function Display({ left, right, colon }: DisplayProps) {
   return (
     <div
-      className="w-screen flex items-center justify-center"
+      className="grid select-none"
       style={{
-        position: "relative",
-        left: "50%",
-        transform: "translateX(-50%)",
+        gridTemplateColumns : "1fr auto 1fr",
+        paddingLeft         : "clamp(1rem, 4vw, 4rem)",
+        paddingRight        : "clamp(1rem, 4vw, 4rem)",
+        fontSize            : "clamp(3rem, 13.5vw, 13rem)",
+        fontFamily          : "var(--font-mono, ui-monospace, monospace)",
+        fontWeight          : 300,
+        letterSpacing       : "-0.02em",
+        lineHeight          : 1,
+        alignItems          : "center",
+        margin              : "0 auto",
+        justifyContent      : "center",
       }}
     >
-      <div
-        className="grid select-none"
+      {/* Left — right-aligned, grows leftward from colon */}
+      <span
+        className="text-white tabular-nums whitespace-nowrap"
+        style={{ textAlign: "right" }}
+      >
+        {left}
+      </span>
+
+      {/* Colon — auto-width column, always sits at the grid midpoint */}
+      <span
+        className="text-white"
         style={{
-          gridTemplateColumns : "1fr auto 1fr",
-          paddingLeft         : "clamp(1rem, 4vw, 4rem)",
-          paddingRight        : "clamp(1rem, 4vw, 4rem)",
-          fontSize            : "clamp(3rem, 13.5vw, 13rem)",
-          fontFamily          : "var(--font-mono, ui-monospace, monospace)",
-          fontWeight          : 300,
-          letterSpacing       : "-0.02em",
-          lineHeight          : 1,
-          alignItems          : "center",
+          opacity    : colon ? 1 : 0.1,
+          transition : "opacity 60ms steps(1)",
+          padding    : "0 0.05em",
+          display    : "block",
+          textAlign  : "center",
         }}
       >
-        {/* Left — right-aligned, grows leftward from colon */}
-        <span
-          className="text-white tabular-nums whitespace-nowrap"
-          style={{ textAlign: "right" }}
-        >
-          {left}
-        </span>
+        :
+      </span>
 
-        {/* Colon — auto-width column, always sits at the grid midpoint */}
-        <span
-          className="text-white"
-          style={{
-            opacity    : colon ? 1 : 0.1,
-            transition : "opacity 60ms steps(1)",
-            padding    : "0 0.05em",
-            display    : "block",
-            textAlign  : "center",
-          }}
-        >
-          :
-        </span>
-
-        {/* Right — left-aligned, grows rightward from colon */}
-        <span
-          className="text-white tabular-nums whitespace-nowrap"
-          style={{ textAlign: "left" }}
-        >
-          {right}
-        </span>
-      </div>
+      {/* Right — left-aligned, grows rightward from colon */}
+      <span
+        className="text-white tabular-nums whitespace-nowrap"
+        style={{ textAlign: "left" }}
+      >
+        {right}
+      </span>
     </div>
   );
 }
@@ -191,7 +184,8 @@ export default function HeroSection() {
       </motion.div>
 
       {/* ── Main logo container — perfectly centered ── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-hidden">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full overflow-hidden px-0">
+        
         {/* ── MAIN LOGO DISPLAY — RE:DISTRICT perfectly centered ── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -206,6 +200,7 @@ export default function HeroSection() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: "linear" }}
+              className="flex items-center justify-center w-full"
             >
               <Display left={left} right={right} colon={colon} />
             </motion.div>
