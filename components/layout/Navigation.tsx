@@ -41,18 +41,6 @@ export default function Navigation() {
       >
         <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between gap-6">
 
-          {/* ── Logo: static RE:DISTRICT, no clock logic ── */}
-          <a
-            href="/"
-            onClick={handleHome}
-            className="shrink-0 font-mono font-light text-white text-[13px] md:text-[15px]
-                       tracking-tight hover:opacity-50 transition-opacity duration-200 select-none"
-            style={{ letterSpacing: "-0.01em" }}
-            aria-label="RE:DISTRICT home"
-          >
-            RE:DISTRICT
-          </a>
-
           {/* ── Desktop nav ── */}
           <nav className="hidden md:flex items-center gap-10 flex-1 justify-center">
             {navLinks.map((link) => (
@@ -133,10 +121,6 @@ export default function Navigation() {
             className="fixed inset-0 z-40 bg-black flex flex-col"
           >
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-              <span className="font-mono font-light text-white text-[13px] tracking-tight select-none"
-                    style={{ letterSpacing: "-0.01em" }}>
-                RE:DISTRICT
-              </span>
               <button
                 onClick={() => setMenuOpen(false)}
                 className="text-[9px] font-mono tracking-widest uppercase text-zinc-500
