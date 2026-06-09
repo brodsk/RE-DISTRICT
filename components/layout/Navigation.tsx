@@ -14,12 +14,16 @@ const navLinks = [
 export default function Navigation() {
   const [scrolled,  setScrolled] = useState(false);
   const [menuOpen,  setMenuOpen] = useState(false);
+  const [showLogo,  setShowLogo] = useState(false);
   const { lang, setLang, t }     = useLang();
   const router   = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 60);
+      setShowLogo(window.scrollY > 300);
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -41,6 +45,25 @@ export default function Navigation() {
       >
         <div className="w-full px-6 md:px-12 flex items-center justify-between gap-4 md:gap-6">
 
+          {/* ── Logo (appears on scroll) ── */}
+          <AnimatePresence>
+            {showLogo && (
+              <motion.button
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                onClick={handleHome}
+                className="shrink-0 font-mono font-light text-white text-[12px] md:text-[13px]
+                           tracking-tight hover:opacity-50 transition-opacity duration-200 select-none"
+                style={{ letterSpacing: "-0.01em" }}
+                aria-label="RE:DISTRICT home"
+              >
+                RE:DISTRICT
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           {/* ── Desktop nav (centered) ── */}
           <nav className="hidden md:flex items-center gap-10 flex-1 justify-center">
             {navLinks.map((link) => (
@@ -55,8 +78,8 @@ export default function Navigation() {
             ))}
           </nav>
 
-          {/* ── Language switcher (right side) ── */}
-          <div className="flex items-center shrink-0">
+          {/* ── Language switcher (right side - no shrinking) ── */}
+          <div className="flex items-center">
             <div className="flex items-center border border-white/10">
               <button
                 onClick={() => setLang("en")}
