@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import CustomCursor from "@/components/ui/CustomCursor";
 import DynamicFavicon from "@/components/ui/DynamicFavicon";
@@ -45,6 +46,7 @@ export default function RootLayout({
           <LiveTitle />
           <DynamicFavicon />
           <CustomCursor />
+          <Navigation />
           <main>{children}</main>
           <Footer />
         </LangProvider>
