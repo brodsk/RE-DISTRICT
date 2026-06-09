@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLang } from "@/lib/lang";
 
-// ─── Types & constants ─────────────────────────────────────────────────────────
+// ─── Types & constants ───────────────────────────────────────────────────────
 
 type Mode = "brand" | "clock" | "glitch";
 
@@ -13,19 +13,19 @@ const CLOCK_MS  = 20_000;
 const GLITCH_MS =  5_000;
 const EASTER_MS =  5 * 60_000;
 
-// ─── Timezone → city name ──────────────────────────────────────────────────────
+// ─── Timezone → city name ─────────────────────────────────────────────────────
 
 function getCity(): string {
   try {
-    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone; // "Europe/Moscow"
+    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const raw = tz.split("/").pop() ?? "LOCAL";
-    return raw.replace(/_/g, " ");                                // "New_York" → "New York"
+    return raw.replace(/_/g, " ");
   } catch {
     return "LOCAL";
   }
 }
 
-// ─── Clock state hook ──────────────────────────────────────────────────────────
+// ─── Clock state hook ───────────────────────────────────────────────────────
 
 function useClockState() {
   const [mode,  setMode]  = useState<Mode>("brand");
@@ -73,9 +73,7 @@ function useClockState() {
   return { mode, colon, h, m, s, city };
 }
 
-// ─── Content per mode ──────────────────────────────────────────────────────────
-// Each mode returns { left, right } strings only.
-// The single shared renderer below handles all sizing/centering.
+// ─── Content per mode ───────────────────────────────────────────────────────
 
 interface Sides { left: string; right: string }
 
@@ -87,20 +85,7 @@ function getSides(mode: Mode, h: string, m: string): Sides {
   }
 }
 
-// ─── THE SINGLE DISPLAY RENDERER ───────────────────────────────────────────────
-//
-// ALL three states share:
-//   • identical outer container  (w-full max-w-[820px])
-//   • identical CSS grid         (1fr auto 1fr)
-//   • identical font-size        (clamp)
-//   • identical font-weight / family / tracking
-//
-// Only the LEFT and RIGHT string content changes.
-// The colon column is always auto-width, always at grid centre → viewport centre.
-//
-// Font-size is deliberately unified. Clock digits are wider characters;
-// brand text is narrower. The grid absorbs that naturally — left/right
-// columns grow/shrink symmetrically, colon never moves.
+// ─── DISPLAY RENDERER — Perfect centering on all screens ───────────────────
 
 interface DisplayProps {
   left:   string;
@@ -111,54 +96,62 @@ interface DisplayProps {
 function Display({ left, right, colon }: DisplayProps) {
   return (
     <div
-      className="w-full grid select-none"
+      className="w-screen flex items-center justify-center"
       style={{
-        // Symmetric horizontal padding — same on both sides, colon stays centred
-        gridTemplateColumns : "1fr auto 1fr",
-        paddingLeft         : "clamp(1rem, 4vw, 4rem)",
-        paddingRight        : "clamp(1rem, 4vw, 4rem)",
-        fontSize            : "clamp(3rem, 13.5vw, 13rem)",
-        fontFamily          : "var(--font-mono, ui-monospace, monospace)",
-        fontWeight          : 300,
-        letterSpacing       : "-0.02em",
-        lineHeight          : 1,
-        alignItems          : "center",
+        position: "relative",
+        left: "50%",
+        transform: "translateX(-50%)",
       }}
     >
-      {/* Left — right-aligned, grows leftward from colon */}
-      <span
-        className="text-white tabular-nums whitespace-nowrap"
-        style={{ textAlign: "right" }}
-      >
-        {left}
-      </span>
-
-      {/* Colon — auto-width column, always sits at the grid midpoint */}
-      <span
-        className="text-white"
+      <div
+        className="grid select-none"
         style={{
-          opacity    : colon ? 1 : 0.1,
-          transition : "opacity 60ms steps(1)",
-          padding    : "0 0.05em",
-          display    : "block",
-          textAlign  : "center",
+          gridTemplateColumns : "1fr auto 1fr",
+          paddingLeft         : "clamp(1rem, 4vw, 4rem)",
+          paddingRight        : "clamp(1rem, 4vw, 4rem)",
+          fontSize            : "clamp(3rem, 13.5vw, 13rem)",
+          fontFamily          : "var(--font-mono, ui-monospace, monospace)",
+          fontWeight          : 300,
+          letterSpacing       : "-0.02em",
+          lineHeight          : 1,
+          alignItems          : "center",
         }}
       >
-        :
-      </span>
+        {/* Left — right-aligned, grows leftward from colon */}
+        <span
+          className="text-white tabular-nums whitespace-nowrap"
+          style={{ textAlign: "right" }}
+        >
+          {left}
+        </span>
 
-      {/* Right — left-aligned, grows rightward from colon */}
-      <span
-        className="text-white tabular-nums whitespace-nowrap"
-        style={{ textAlign: "left" }}
-      >
-        {right}
-      </span>
+        {/* Colon — auto-width column, always sits at the grid midpoint */}
+        <span
+          className="text-white"
+          style={{
+            opacity    : colon ? 1 : 0.1,
+            transition : "opacity 60ms steps(1)",
+            padding    : "0 0.05em",
+            display    : "block",
+            textAlign  : "center",
+          }}
+        >
+          :
+        </span>
+
+        {/* Right — left-aligned, grows rightward from colon */}
+        <span
+          className="text-white tabular-nums whitespace-nowrap"
+          style={{ textAlign: "left" }}
+        >
+          {right}
+        </span>
+      </div>
     </div>
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Main HeroSection ───────────────────────────────────────────────────────
 
 export default function HeroSection() {
   const { t } = useLang();
@@ -197,21 +190,14 @@ export default function HeroSection() {
         </span>
       </motion.div>
 
-      {/* ── Centre display area ── */}
-      {/*
-        The display container must span the FULL viewport width so that
-        the CSS grid (1fr : auto : 1fr) centres its colon on the true
-        viewport midpoint — not on a constrained max-w box.
-        flex-1 + flex-col + items-stretch achieves this.
-      */}
-      <div className="relative z-10 flex-1 flex flex-col items-stretch justify-center">
-
-        {/* ── SINGLE DISPLAY CONTAINER — full width, identical for all 3 modes ── */}
+      {/* ── Main logo container — perfectly centered ── */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-hidden">
+        {/* ── MAIN LOGO DISPLAY — RE:DISTRICT perfectly centered ── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-          className="w-full mb-6 md:mb-8"
+          className="w-full"
         >
           <AnimatePresence mode="wait">
             <motion.div
@@ -225,9 +211,12 @@ export default function HeroSection() {
             </motion.div>
           </AnimatePresence>
         </motion.div>
+      </div>
 
-        {/* ── Sub-display: seconds + city + system tag ── */}
-        {/* Fixed height — always reserves space, nothing below ever shifts */}
+      {/* ── Bottom content area ── */}
+      <div className="relative z-10 flex flex-col items-center px-6 md:px-12 pb-24">
+        
+        {/* Secondary info: seconds + city + system tag */}
         <div className="w-full h-[20px] flex items-center justify-center mb-6 md:mb-8">
           <AnimatePresence mode="wait">
             {mode === "clock" ? (
@@ -262,7 +251,7 @@ export default function HeroSection() {
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
           transition={{ duration: 0.8, delay: 0.7 }}
-          className="w-full max-w-md h-px bg-white/6 mb-7 md:mb-9 origin-center mx-auto"
+          className="w-full max-w-md h-px bg-white/6 mb-7 md:mb-9 origin-center"
         />
 
         {/* Slogan */}
