@@ -39,10 +39,10 @@ export default function Navigation() {
             : "py-5 md:py-6"
         }`}
       >
-        <div className="max-w-screen-xl mx-auto px-6 md:px-12 flex items-center justify-between gap-6">
+        <div className="w-full px-6 md:px-12 flex items-center justify-between gap-6">
 
-          {/* ── Desktop nav ── */}
-          <nav className="hidden md:flex items-center gap-10 flex-1 justify-center">
+          {/* ── Desktop nav (left side) ── */}
+          <nav className="hidden md:flex items-center gap-10">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -55,7 +55,10 @@ export default function Navigation() {
             ))}
           </nav>
 
-          {/* ── Language switcher ── */}
+          {/* Spacer for desktop */}
+          <div className="hidden md:flex flex-1" />
+
+          {/* ── Language switcher (right side) ── */}
           <div className="hidden md:flex items-center shrink-0">
             <div className="flex items-center border border-white/10">
               <button
@@ -76,7 +79,7 @@ export default function Navigation() {
           </div>
 
           {/* ── Mobile: lang + burger ── */}
-          <div className="md:hidden flex items-center gap-3 shrink-0">
+          <div className="md:hidden flex items-center gap-3 shrink-0 ml-auto">
             <div className="flex items-center border border-white/10">
               <button
                 onClick={() => setLang("en")}
@@ -120,7 +123,7 @@ export default function Navigation() {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-40 bg-black flex flex-col"
           >
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+            <div className="flex items-center justify-end px-6 py-5 border-b border-white/5">
               <button
                 onClick={() => setMenuOpen(false)}
                 className="text-[9px] font-mono tracking-widest uppercase text-zinc-500
