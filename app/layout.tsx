@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
+import Navigation from "@/components/layout/Navigation";
 import CustomCursor from "@/components/ui/CustomCursor";
+import ScrollToTop from "@/components/ui/ScrollToTop";
 import DynamicFavicon from "@/components/ui/DynamicFavicon";
 import LiveTitle from "@/components/ui/LiveTitle";
 import { LangProvider } from "@/lib/lang";
@@ -23,7 +24,10 @@ export const metadata: Metadata = {
     "RE:DISTRICT",
   ],
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon.svg",
   },
   openGraph: {
     title: "RE:DISTRICT — Rebuild Your Time",
@@ -46,6 +50,7 @@ export default function RootLayout({
           <LiveTitle />
           <DynamicFavicon />
           <CustomCursor />
+          <ScrollToTop />
           <Navigation />
           <main>{children}</main>
           <Footer />
