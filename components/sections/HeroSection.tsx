@@ -283,11 +283,11 @@ export default function HeroSection() {
             {t("Explore Watches", "Смотреть часы")}
           </Link>
           <Link
-            href="/about"
+            href="/faq"
             className="text-[10px] tracking-[0.4em] uppercase font-mono text-zinc-600 hover:text-white
                        border border-white/10 hover:border-white/30 px-8 py-3.5 transition-all duration-200"
           >
-            {t("About", "О нас")}
+            {t("FAQ", "FAQ")}
           </Link>
         </motion.div>
       </div>

@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 const navLinks = [
   { href: "/shop",    labelEn: "Shop",    labelRu: "Каталог" },
-  { href: "/about",   labelEn: "About",   labelRu: "О нас"   },
+  { href: "/faq",     labelEn: "FAQ",     labelRu: "FAQ"     },
   { href: "/contact", labelEn: "Contact", labelRu: "Контакт" },
 ];
 

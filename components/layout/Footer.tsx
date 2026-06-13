@@ -54,7 +54,7 @@ export default function Footer() {
             </p>
             <ul className="space-y-2.5">
               {[
-                { href: "/about", en: "About", ru: "О нас" },
+                { href: "/faq", en: "FAQ", ru: "FAQ" },
                 { href: "/contact", en: "Contact", ru: "Контакт" },
                 { href: "/contact", en: "Custom Order", ru: "Кастом-заказ" },
               ].map((l) => (
