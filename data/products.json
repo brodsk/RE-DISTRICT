@@ -1,0 +1,110 @@
+[
+  {
+    "id": "casio-f91w-shadow",
+    "name": "F-91W Shadow",
+    "brand": "Casio",
+    "slug": "casio-f91w-shadow",
+    "tagline": "The icon, reborn in black.",
+    "description": "The Casio F-91W is the most recognised digital watch in history. We stripped it down, rehoused it in a matte black case, and brought it back as something you actually want to wear.",
+    "story": "Started life as a standard F-91W. The resin case was replaced with a custom matte black housing. Strap swapped for a flat black NATO. The module — original, untouched, still perfectly accurate after decades.",
+    "price": 89,
+    "images": [
+      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800&q=85",
+      "https://images.unsplash.com/photo-1611170997960-a2631d0ec2e2?w=800&q=85"
+    ],
+    "status": "available",
+    "category": "custom",
+    "tags": ["casio", "f91w", "custom", "black"],
+    "stock": 1,
+    "featured": true,
+    "year": 1991,
+    "specifications": {
+      "case": "Custom matte black resin",
+      "display": "Digital LCD",
+      "movement": "Casio Module 593",
+      "battery": "CR2016, ~7 year life",
+      "waterResistance": "30m",
+      "strap": "Black NATO 18mm"
+    }
+  },
+  {
+    "id": "seiko-digi-restore",
+    "name": "Alba Fusion",
+    "brand": "Seiko / Alba",
+    "slug": "seiko-alba-fusion",
+    "tagline": "Tokyo, 1987. Found, fixed, yours.",
+    "description": "An Alba AW490 from 1987 — Seiko's experimental digital subdivision. The case is original brushed stainless. New battery, new strap, cleaned and running perfectly.",
+    "story": "Alba was Seiko's export brand for youth markets in the late 80s. This AW490 came from a small shop in Osaka. The display was dim but readable. After a full clean and battery change, it reads like new.",
+    "price": 145,
+    "images": [
+      "https://images.unsplash.com/photo-1547996160-81dfa63595aa?w=800&q=85",
+      "https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?w=800&q=85"
+    ],
+    "status": "available",
+    "category": "restored",
+    "tags": ["seiko", "alba", "vintage", "japanese", "restored"],
+    "stock": 1,
+    "featured": true,
+    "year": 1987,
+    "specifications": {
+      "case": "Brushed stainless steel",
+      "display": "Digital LCD, original",
+      "movement": "Seiko / Alba module",
+      "battery": "SR626SW, new",
+      "waterResistance": "Not rated",
+      "strap": "Black rubber, new"
+    }
+  },
+  {
+    "id": "casio-aq230-chrome",
+    "name": "AQ-230 Chrome",
+    "brand": "Casio",
+    "slug": "casio-aq230-chrome",
+    "tagline": "Analog hands. Digital soul.",
+    "description": "The AQ-230 is Casio's hybrid — analog hands over a digital module. This chrome version is a curated pre-owned example in near-mint condition.",
+    "price": 112,
+    "images": [
+      "https://images.unsplash.com/photo-1533139502658-0198f920d8e8?w=800&q=85"
+    ],
+    "status": "available",
+    "category": "curated",
+    "tags": ["casio", "aq230", "analog-digital", "curated"],
+    "stock": 1,
+    "featured": false,
+    "year": 2019,
+    "specifications": {
+      "case": "Stainless steel, 38mm",
+      "display": "Analog + Digital",
+      "movement": "Casio Module 5208",
+      "battery": "Replaced",
+      "waterResistance": "50m",
+      "strap": "Original stainless bracelet"
+    }
+  },
+  {
+    "id": "casio-w800h-mod",
+    "name": "W-800H Ghost",
+    "brand": "Casio",
+    "slug": "casio-w800h-ghost",
+    "tagline": "10 bar. Matte black. No compromises.",
+    "description": "W-800H — Casio's serious diver in the digital format. This Ghost edition has the bezel removed, case polished flat matte, strap replaced. Clean.",
+    "price": 98,
+    "images": [
+      "https://images.unsplash.com/photo-1509048191080-d2984bad6ae5?w=800&q=85"
+    ],
+    "status": "limited",
+    "category": "custom",
+    "tags": ["casio", "w800h", "diver", "custom", "matte"],
+    "stock": 1,
+    "featured": true,
+    "year": 2020,
+    "specifications": {
+      "case": "Resin, matte black custom finish",
+      "display": "Digital LCD",
+      "movement": "Casio Module 3271",
+      "battery": "New",
+      "waterResistance": "100m",
+      "strap": "Black flat rubber"
+    }
+  }
+]

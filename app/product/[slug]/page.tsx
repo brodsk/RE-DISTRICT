@@ -1,95 +1,104 @@
 "use client";
-import { useState } from "react";
-import { notFound, useParams } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { watches } from "@/lib/data";
-import WatchCard from "@/components/ui/WatchCard";
+import { Product } from "@/lib/types";
+import { useCart } from "@/lib/cart";
 
-const categoryLabel: Record<string, string> = {
-  custom: "Custom Build",
-  restored: "Restored Vintage",
-  curated: "Curated Pre-owned",
-};
-
-const conditionLabel: Record<string, string> = {
-  mint: "Mint",
-  excellent: "Excellent",
-  good: "Good",
-  fair: "Fair",
+const statusLabel: Record<string, string> = {
+  available: "Available",
+  sold:      "Sold",
+  limited:   "Limited",
+  concept:   "Concept",
 };
 
 export default function ProductPage() {
-  const params = useParams();
-  const slug = params?.slug as string;
-  const watch = watches.find((w) => w.slug === slug);
+  const { slug } = useParams<{ slug: string }>();
+  const [product,  setProduct]  = useState<Product | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [imgIndex, setImgIndex] = useState(0);
+  const { addItem, setOpen }    = useCart();
 
-  const [activeImage, setActiveImage] = useState(0);
+  useEffect(() => {
+    fetch("/api/products")
+      .then(r => r.json())
+      .then((data: Product[]) => {
+        const found = data.find(p => p.slug === slug) ?? null;
+        setProduct(found);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [slug]);
 
-  if (!watch) return notFound();
+  if (loading) return <div className="min-h-screen bg-black" />;
+  if (!product) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="text-center">
+        <p className="font-mono text-zinc-700 text-xs tracking-widest mb-6">Product not found.</p>
+        <Link href="/shop" className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-500 hover:text-white transition-colors">
+          ← Back to Shop
+        </Link>
+      </div>
+    </div>
+  );
 
-  const related = watches
-    .filter((w) => w.id !== watch.id && w.category === watch.category)
-    .slice(0, 3);
+  const available = product.status === "available" || product.status === "limited";
 
   return (
-    <div className="min-h-screen bg-black pt-24">
-      {/* Breadcrumb */}
-      <div className="px-6 md:px-12 py-6 border-b border-white/5">
-        <div className="max-w-screen-xl mx-auto flex items-center gap-3 text-xs text-zinc-600 font-mono tracking-wider">
-          <Link href="/shop" className="hover:text-white transition-colors">
-            Shop
-          </Link>
-          <span>/</span>
-          <span className="capitalize">{watch.category}</span>
-          <span>/</span>
-          <span className="text-zinc-400">{watch.name}</span>
-        </div>
-      </div>
+    <div className="min-h-screen bg-black">
+      {/* Background grid */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage:
+          "linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px)," +
+          "linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+      }} />
 
-      <div className="max-w-screen-xl mx-auto px-6 md:px-12 py-12 md:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 mb-24">
+      <div className="relative z-10 max-w-screen-xl mx-auto px-6 md:px-12 pt-28 md:pt-32 pb-24">
+
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-700 tracking-wider mb-12">
+          <Link href="/shop" className="hover:text-white transition-colors">Shop</Link>
+          <span>/</span>
+          <span className="capitalize text-zinc-600">{product.category}</span>
+          <span>/</span>
+          <span>{product.name}</span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+
           {/* Images */}
           <div>
-            {/* Main image */}
             <motion.div
-              key={activeImage}
+              key={imgIndex}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              className="relative aspect-square overflow-hidden bg-zinc-950 mb-4"
+              transition={{ duration: 0.3 }}
+              className="relative aspect-square bg-zinc-950 overflow-hidden mb-3"
             >
-              <Image
-                src={watch.images[activeImage]}
-                alt={watch.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-              />
+              {product.images[imgIndex] && (
+                <Image
+                  src={product.images[imgIndex]}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+              )}
             </motion.div>
-
-            {/* Thumbnails */}
-            {watch.images.length > 1 && (
-              <div className="flex gap-3">
-                {watch.images.map((img, i) => (
+            {product.images.length > 1 && (
+              <div className="flex gap-2">
+                {product.images.map((img, i) => (
                   <button
                     key={i}
-                    onClick={() => setActiveImage(i)}
-                    className={`relative w-20 h-20 overflow-hidden transition-all duration-200 ${
-                      activeImage === i
-                        ? "border border-white/60"
-                        : "border border-white/10 hover:border-white/30 opacity-50 hover:opacity-80"
-                    }`}
+                    onClick={() => setImgIndex(i)}
+                    className={`relative w-16 h-16 overflow-hidden transition-all
+                      ${imgIndex === i ? "border border-white/40" : "border border-white/10 opacity-50 hover:opacity-80"}`}
                   >
-                    <Image
-                      src={img}
-                      alt={`${watch.name} view ${i + 1}`}
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                    />
+                    <Image src={img} alt="" fill className="object-cover grayscale" sizes="64px" />
                   </button>
                 ))}
               </div>
@@ -97,137 +106,89 @@ export default function ProductPage() {
           </div>
 
           {/* Details */}
-          <div>
-            {/* Category & condition */}
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-[10px] tracking-[0.3em] uppercase font-mono text-zinc-500 border border-white/10 px-3 py-1.5">
-                {categoryLabel[watch.category]}
+          <div className="flex flex-col">
+            {/* Status + category */}
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-[8px] font-mono tracking-[0.3em] uppercase border border-white/10 text-zinc-500 px-2.5 py-1">
+                {product.category}
               </span>
-              <span className="text-[10px] tracking-[0.3em] uppercase font-mono text-zinc-500">
-                {conditionLabel[watch.condition]}
+              <span className={`text-[8px] font-mono tracking-[0.3em] uppercase
+                ${product.status === "available" ? "text-white" :
+                  product.status === "limited"   ? "text-zinc-300" : "text-zinc-700"}`}>
+                {statusLabel[product.status]}
               </span>
             </div>
 
-            {/* Title */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <p className="text-xs tracking-[0.25em] uppercase text-zinc-600 font-mono mb-2">
-                {watch.brand} · {watch.year}
-              </p>
-              <h1 className="font-display text-5xl md:text-6xl font-light leading-none mb-3">
-                {watch.name}
-              </h1>
-              <p className="font-display text-xl italic text-zinc-400 mb-8">
-                {watch.tagline}
-              </p>
-            </motion.div>
-
-            {/* Price */}
-            <div className="border-t border-white/8 pt-8 mb-8">
-              <p className="text-3xl font-mono text-white">
-                {watch.price.toLocaleString("en-US", {
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 0,
-                })}
-              </p>
-            </div>
-
-            {/* Description */}
-            <p className="text-sm text-zinc-400 leading-relaxed mb-8">
-              {watch.description}
+            <p className="text-[9px] font-mono text-zinc-600 tracking-[0.25em] uppercase mb-2">
+              {product.brand} · {product.year}
             </p>
+            <h1
+              className="font-light text-white mb-3 leading-tight"
+              style={{
+                fontFamily: "var(--font-display, serif)",
+                fontSize: "clamp(1.8rem, 4vw, 3.5rem)",
+              }}
+            >
+              {product.name}
+            </h1>
+            <p className="text-sm font-mono text-zinc-500 italic mb-6">{product.tagline}</p>
 
-            {/* CTA */}
-            {!watch.sold ? (
+            <div className="w-12 h-px bg-white/10 mb-6" />
+
+            <p className="text-xs font-mono text-zinc-400 leading-relaxed mb-8">{product.description}</p>
+
+            {/* Price + Add to Cart */}
+            <div className="mt-auto">
+              <p className="text-2xl font-mono text-white tabular-nums mb-4">${product.price}</p>
+              {available ? (
+                <button
+                  onClick={() => { addItem(product); }}
+                  className="w-full text-[10px] tracking-[0.4em] uppercase font-mono
+                             bg-white text-black hover:bg-zinc-200 py-4 transition-colors mb-3"
+                >
+                  Add to Cart
+                </button>
+              ) : (
+                <div className="w-full text-center text-[10px] tracking-[0.4em] uppercase font-mono
+                                border border-white/10 text-zinc-600 py-4 mb-3">
+                  {statusLabel[product.status]}
+                </div>
+              )}
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-4 w-full md:w-auto"
+                className="block w-full text-center text-[9px] tracking-[0.3em] uppercase font-mono
+                           text-zinc-600 hover:text-white border border-white/8 hover:border-white/25
+                           py-3 transition-all"
               >
-                <span className="flex-1 md:flex-none text-center text-xs tracking-[0.3em] uppercase text-black bg-white hover:bg-zinc-200 px-10 py-5 transition-colors font-medium">
-                  Inquire to Purchase
-                </span>
+                Inquire via Instagram
               </Link>
-            ) : (
-              <div className="text-xs tracking-[0.3em] uppercase text-zinc-600 border border-white/10 px-10 py-5 text-center md:inline-block">
-                Sold
-              </div>
-            )}
-
-            {/* Story */}
-            {watch.story && (
-              <div className="mt-10 pt-10 border-t border-white/8">
-                <p className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono mb-4">
-                  The Story
-                </p>
-                <p className="text-sm text-zinc-400 leading-relaxed italic font-display text-lg">
-                  {watch.story}
-                </p>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Specifications */}
-        <div className="border-t border-white/8 pt-16 mb-24">
-          <p className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono mb-10">
-            Specifications
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Object.entries(watch.specifications).map(([key, val]) => (
-              <div
-                key={key}
-                className="border-b border-white/8 pb-5"
-              >
-                <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-mono mb-1 capitalize">
-                  {key}
+        {/* Story */}
+        {product.story && (
+          <div className="mt-16 pt-16 border-t border-white/5 max-w-2xl">
+            <p className="text-[9px] font-mono tracking-[0.35em] uppercase text-zinc-600 mb-4">The Story</p>
+            <p className="text-sm font-mono text-zinc-400 leading-relaxed">{product.story}</p>
+          </div>
+        )}
+
+        {/* Specs */}
+        <div className="mt-12 pt-12 border-t border-white/5">
+          <p className="text-[9px] font-mono tracking-[0.35em] uppercase text-zinc-600 mb-6">Specifications</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {Object.entries(product.specifications).map(([k, v]) => (
+              <div key={k} className="border-b border-white/5 pb-4">
+                <p className="text-[8px] font-mono text-zinc-700 tracking-[0.25em] uppercase mb-1 capitalize">
+                  {k.replace(/([A-Z])/g, " $1")}
                 </p>
-                <p className="text-sm text-white">{val}</p>
+                <p className="text-xs font-mono text-zinc-300">{v}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Restoration notes */}
-        {watch.restorationNotes && (
-          <div className="bg-zinc-950 p-8 md:p-12 mb-24">
-            <p className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono mb-4">
-              Restoration Notes
-            </p>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              {watch.restorationNotes}
-            </p>
-          </div>
-        )}
-
-        {/* Custom modifications */}
-        {watch.customModifications && (
-          <div className="bg-zinc-950 p-8 md:p-12 mb-24">
-            <p className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono mb-4">
-              Custom Modifications
-            </p>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              {watch.customModifications}
-            </p>
-          </div>
-        )}
-
-        {/* Related */}
-        {related.length > 0 && (
-          <div className="border-t border-white/8 pt-16">
-            <p className="text-[10px] tracking-[0.35em] uppercase text-zinc-600 font-mono mb-12">
-              More in {categoryLabel[watch.category]}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {related.map((w, i) => (
-                <WatchCard key={w.id} watch={w} index={i} />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

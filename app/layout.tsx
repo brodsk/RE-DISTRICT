@@ -7,6 +7,8 @@ import ScrollToTop from "@/components/ui/ScrollToTop";
 import DynamicFavicon from "@/components/ui/DynamicFavicon";
 import LiveTitle from "@/components/ui/LiveTitle";
 import { LangProvider } from "@/lib/lang";
+import { CartProvider } from "@/lib/cart";
+import CartDrawer from "@/components/cart/CartDrawer";
 
 export const metadata: Metadata = {
   title: {
@@ -47,13 +49,16 @@ export default function RootLayout({
     <html lang="en" className="bg-black">
       <body className="bg-black text-white antialiased overflow-x-hidden">
         <LangProvider>
-          <LiveTitle />
-          <DynamicFavicon />
-          <CustomCursor />
-          <ScrollToTop />
-          <Navigation />
-          <main>{children}</main>
-          <Footer />
+          <CartProvider>
+            <LiveTitle />
+            <DynamicFavicon />
+            <CustomCursor />
+            <ScrollToTop />
+            <CartDrawer />
+            <Navigation />
+            <main>{children}</main>
+            <Footer />
+          </CartProvider>
         </LangProvider>
       </body>
     </html>

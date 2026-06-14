@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/lib/lang";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import CartButton from "@/components/cart/CartButton";
 
 const navLinks = [
   { href: "/shop",    labelEn: "Shop",    labelRu: "Каталог" },
@@ -81,8 +82,8 @@ export default function Navigation() {
             ))}
           </nav>
 
-          {/* ── RIGHT: Lang switcher + mobile burger ── */}
-          <div className="flex items-center justify-end gap-3">
+          {/* ── RIGHT: Lang switcher + cart ── */}
+          <div className="flex items-center justify-end gap-4">
             {/* Desktop lang */}
             <div className="hidden md:flex items-center border border-white/10">
               <button
@@ -100,6 +101,9 @@ export default function Navigation() {
                 }`}
               >RU</button>
             </div>
+
+            {/* Cart button — always visible */}
+            <CartButton />
 
             {/* Mobile lang + burger */}
             <div className="md:hidden flex items-center gap-3">
