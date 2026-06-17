@@ -1,126 +1,69 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { CartItem, Product } from "@/lib/types";
+import { CartItem } from "@/lib/types";
 
-interface CartContextType {
+const KEY = "rd_cart";
+
+interface CartCtx {
   items:       CartItem[];
-  count:       number;
-  total:       number;
   open:        boolean;
   setOpen:     (v: boolean) => void;
-  addItem:     (product: Product) => void;
+  addItem:     (item: Omit<CartItem, "quantity">) => void;
   removeItem:  (productId: string) => void;
   updateQty:   (productId: string, qty: number) => void;
   clearCart:   () => void;
-  checkout:    () => Promise<void>;
-  loading:     boolean;
+  total:       number;
+  count:       number;
 }
 
-const CartContext = createContext<CartContextType | null>(null);
-
-const STORAGE_KEY = "rd_cart";
+const CartContext = createContext<CartCtx>({
+  items: [], open: false, setOpen: () => {}, addItem: () => {},
+  removeItem: () => {}, updateQty: () => {}, clearCart: () => {},
+  total: 0, count: 0,
+});
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items,   setItems]   = useState<CartItem[]>([]);
-  const [open,    setOpen]    = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [open,  setOpen]  = useState(false);
 
-  // Hydrate from localStorage
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw));
+      const saved = localStorage.getItem(KEY);
+      if (saved) setItems(JSON.parse(saved));
     } catch {}
   }, []);
 
-  // Persist on change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch {}
-  }, [items]);
+  const persist = (next: CartItem[]) => {
+    setItems(next);
+    try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
+  };
 
-  const addItem = useCallback((product: Product) => {
+  const addItem = useCallback((item: Omit<CartItem, "quantity">) => {
     setItems(prev => {
-      const exists = prev.find(i => i.productId === product.id);
-      if (exists) {
-        return prev.map(i =>
-          i.productId === product.id
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
-        );
-      }
-      return [...prev, {
-        productId: product.id,
-        quantity:  1,
-        name:      `${product.brand} ${product.name}`,
-        price:     product.price,
-        image:     product.images[0] ?? "",
-        slug:      product.slug,
-      }];
+      const existing = prev.find(i => i.productId === item.productId);
+      const next = existing
+        ? prev.map(i => i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i)
+        : [...prev, { ...item, quantity: 1 }];
+      try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
+      return next;
     });
     setOpen(true);
   }, []);
 
-  const removeItem = useCallback((productId: string) => {
-    setItems(prev => prev.filter(i => i.productId !== productId));
-  }, []);
-
-  const updateQty = useCallback((productId: string, qty: number) => {
-    if (qty <= 0) {
-      setItems(prev => prev.filter(i => i.productId !== productId));
-    } else {
-      setItems(prev => prev.map(i =>
-        i.productId === productId ? { ...i, quantity: qty } : i
-      ));
-    }
-  }, []);
-
-  const clearCart = useCallback(() => setItems([]), []);
-
-  const checkout = useCallback(async () => {
-    if (items.length === 0) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/checkout", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          items: items.map(i => ({
-            productId: i.productId,
-            name:      i.name,
-            price:     i.price,
-            quantity:  i.quantity,
-            image:     i.image,
-          })),
-        }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else console.error("No Stripe URL:", data);
-    } catch (err) {
-      console.error("Checkout error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [items]);
-
-  const count = items.reduce((s, i) => s + i.quantity, 0);
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const removeItem  = (productId: string) => persist(items.filter(i => i.productId !== productId));
+  const updateQty   = (productId: string, qty: number) => {
+    if (qty <= 0) return removeItem(productId);
+    persist(items.map(i => i.productId === productId ? { ...i, quantity: qty } : i));
+  };
+  const clearCart   = () => persist([]);
+  const total       = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const count       = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <CartContext.Provider value={{
-      items, count, total, open, setOpen,
-      addItem, removeItem, updateQty, clearCart,
-      checkout, loading,
-    }}>
+    <CartContext.Provider value={{ items, open, setOpen, addItem, removeItem, updateQty, clearCart, total, count }}>
       {children}
     </CartContext.Provider>
   );
 }
 
-export function useCart(): CartContextType {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be inside CartProvider");
-  return ctx;
-}
+export function useCart() { return useContext(CartContext); }

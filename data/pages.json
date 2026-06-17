@@ -1,8 +1,31 @@
 {
   "home": {
-    "blocks": []
-  },
-  "shop": {
-    "blocks": []
+    "blocks": [
+      {
+        "id": "hero-1",
+        "type": "hero",
+        "data": {
+          "headline": "Rebuild your time.",
+          "subheadline": "Custom, restored and curated Japanese digital watches.",
+          "cta": "Explore Watches",
+          "ctaHref": "/shop"
+        }
+      },
+      {
+        "id": "manifesto-1",
+        "type": "manifesto",
+        "data": {
+          "text": "Time is the same for everyone. Watches are not."
+        }
+      },
+      {
+        "id": "grid-1",
+        "type": "productGrid",
+        "data": {
+          "title": "Current Selection",
+          "featured": true
+        }
+      }
+    ]
   }
 }

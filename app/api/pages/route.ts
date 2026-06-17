@@ -1,42 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
-import { PagesConfig } from "@/lib/types";
+import { PageConfig } from "@/lib/types";
+import { getPages, savePage } from "@/lib/store";
 
-const DATA_PATH = join(process.cwd(), "data", "pages.json");
+const AUTH = process.env.ADMIN_PASSWORD ?? "redistrict2026";
+const noCache = { headers: { "Cache-Control": "no-store, no-cache" } };
 
-function readPages(): PagesConfig {
-  try {
-    return JSON.parse(readFileSync(DATA_PATH, "utf-8"));
-  } catch {
-    return {};
-  }
-}
-
-function writePages(pages: PagesConfig) {
-  writeFileSync(DATA_PATH, JSON.stringify(pages, null, 2));
-}
-
-// GET /api/pages?page=home
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const page = searchParams.get("page");
-  const pages = readPages();
-
-  if (page) return NextResponse.json(pages[page] ?? { blocks: [] });
-  return NextResponse.json(pages);
+  const page  = new URL(req.url).searchParams.get("page");
+  const pages = await getPages();
+  const data  = page ? (pages[page] ?? { blocks: [] }) : pages;
+  return NextResponse.json(data, noCache);
 }
 
-// POST /api/pages — save page config
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get("x-admin-password");
-  if (auth !== (process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "redistrict2026")) {
+  if (req.headers.get("x-admin-password") !== AUTH) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
-
-  const { page, config } = await req.json();
-  const pages = readPages();
-  pages[page] = config;
-  writePages(pages);
+  const { page, config }: { page: string; config: PageConfig } = await req.json();
+  await savePage(page, config);
   return NextResponse.json({ ok: true });
 }

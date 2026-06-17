@@ -1,138 +1,89 @@
 "use client";
-import { AnimatePresence, motion } from "framer-motion";
 import { useCart } from "@/lib/cart";
-import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useLang } from "@/lib/lang";
 
 export default function CartDrawer() {
-  const { items, count, total, open, setOpen, removeItem, updateQty, checkout, loading, clearCart } = useCart();
+  const { items, open, setOpen, removeItem, updateQty, total, count } = useCart();
+  const { t } = useLang();
 
   return (
-    <>
-      {/* Backdrop */}
-      <AnimatePresence>
-        {open && (
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setOpen(false)}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
           />
-        )}
-      </AnimatePresence>
 
-      {/* Drawer */}
-      <AnimatePresence>
-        {open && (
+          {/* Drawer */}
           <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm bg-black border-l border-white/8 flex flex-col"
+            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm bg-black
+                       border-l border-white/8 flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono tracking-[0.35em] uppercase text-zinc-500">
-                  Cart
-                </span>
-                {count > 0 && (
-                  <span className="text-[9px] font-mono text-zinc-700 border border-white/10 px-1.5 py-0.5">
-                    {count}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-[9px] font-mono tracking-widest uppercase text-zinc-600 hover:text-white transition-colors"
-              >
-                Close
+              <span className="text-[9px] tracking-[0.4em] uppercase font-mono text-zinc-500">
+                {t("Cart", "Корзина")}
+                {count > 0 && <span className="ml-2 text-white">({count})</span>}
+              </span>
+              <button onClick={() => setOpen(false)}
+                className="text-[9px] tracking-[0.3em] uppercase font-mono text-zinc-600 hover:text-white transition-colors">
+                {t("Close", "Закрыть")}
               </button>
             </div>
 
             {/* Items */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto py-4">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
-                  <p className="text-zinc-700 font-mono text-xs tracking-widest uppercase">
-                    Empty
+                  <p className="text-zinc-700 font-mono text-xs tracking-widest text-center">
+                    {t("Your cart is empty.", "Корзина пуста.")}
                   </p>
-                  <Link
-                    href="/shop"
-                    onClick={() => setOpen(false)}
-                    className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-500 hover:text-white transition-colors"
-                  >
-                    Browse Watches →
+                  <Link href="/shop" onClick={() => setOpen(false)}
+                    className="text-[9px] tracking-[0.3em] uppercase font-mono text-zinc-600 hover:text-white transition-colors">
+                    {t("Browse watches →", "Смотреть часы →")}
                   </Link>
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
-                  {items.map((item) => (
-                    <div key={item.productId} className="flex gap-4 p-5">
-                      {/* Image */}
-                      <div className="w-16 h-16 bg-zinc-950 shrink-0 relative overflow-hidden">
-                        {item.image && (
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            className="object-cover grayscale"
-                            sizes="64px"
-                          />
-                        )}
-                      </div>
-
-                      {/* Info */}
+                  {items.map(item => (
+                    <div key={item.productId} className="flex gap-4 px-6 py-5">
+                      {item.image && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.image} alt={item.name}
+                          className="w-16 h-16 object-cover shrink-0 border border-white/5" />
+                      )}
                       <div className="flex-1 min-w-0">
-                        <Link
-                          href={`/product/${item.slug}`}
-                          onClick={() => setOpen(false)}
-                          className="text-xs text-white font-mono leading-tight block mb-1 truncate hover:opacity-60 transition-opacity"
-                        >
-                          {item.name}
-                        </Link>
-                        <p className="text-[10px] font-mono text-zinc-500 tabular-nums mb-3">
-                          ${item.price}
-                        </p>
-
-                        {/* Qty controls */}
+                        <p className="text-sm font-mono text-white mb-1 truncate">{item.name}</p>
+                        <p className="text-xs font-mono text-zinc-500 mb-3">€{item.price}</p>
                         <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => updateQty(item.productId, item.quantity - 1)}
-                            className="w-5 h-5 flex items-center justify-center border border-white/10
-                                       text-zinc-500 hover:text-white hover:border-white/30 transition-all
-                                       text-xs font-mono"
-                          >
-                            −
-                          </button>
-                          <span className="text-[10px] font-mono text-white tabular-nums w-4 text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQty(item.productId, item.quantity + 1)}
-                            className="w-5 h-5 flex items-center justify-center border border-white/10
-                                       text-zinc-500 hover:text-white hover:border-white/30 transition-all
-                                       text-xs font-mono"
-                          >
-                            +
-                          </button>
-                          <button
-                            onClick={() => removeItem(item.productId)}
-                            className="ml-2 text-[9px] font-mono text-zinc-700 hover:text-white transition-colors tracking-widest uppercase"
-                          >
-                            Remove
+                          <div className="flex items-center border border-white/10">
+                            <button onClick={() => updateQty(item.productId, item.quantity - 1)}
+                              className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-white text-sm transition-colors">
+                              −
+                            </button>
+                            <span className="w-8 text-center text-[11px] font-mono text-white">
+                              {item.quantity}
+                            </span>
+                            <button onClick={() => updateQty(item.productId, item.quantity + 1)}
+                              className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-white text-sm transition-colors">
+                              +
+                            </button>
+                          </div>
+                          <button onClick={() => removeItem(item.productId)}
+                            className="text-[8px] tracking-wider uppercase font-mono text-zinc-700 hover:text-red-700 transition-colors">
+                            {t("Remove", "Удалить")}
                           </button>
                         </div>
                       </div>
-
-                      {/* Line total */}
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-mono text-zinc-400 tabular-nums">
-                          ${(item.price * item.quantity).toFixed(0)}
-                        </span>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-mono text-white">€{(item.price * item.quantity).toFixed(2)}</p>
                       </div>
                     </div>
                   ))}
@@ -142,36 +93,38 @@ export default function CartDrawer() {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="border-t border-white/5 p-5 space-y-4">
-                {/* Total */}
+              <div className="border-t border-white/5 px-6 py-6 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-600">Total</span>
-                  <span className="text-sm font-mono text-white tabular-nums">${total.toFixed(0)}</span>
+                  <span className="text-[9px] tracking-[0.3em] uppercase font-mono text-zinc-500">
+                    {t("Subtotal", "Сумма")}
+                  </span>
+                  <span className="text-base font-mono text-white tabular-nums">
+                    €{total.toFixed(2)}
+                  </span>
                 </div>
-
-                {/* Checkout */}
-                <button
-                  onClick={checkout}
-                  disabled={loading}
-                  className="w-full text-[10px] tracking-[0.3em] uppercase font-mono
-                             bg-white text-black hover:bg-zinc-200 py-4
-                             transition-colors duration-200 disabled:opacity-40"
+                <p className="text-[9px] font-mono text-zinc-700">
+                  {t("+ Shipping calculated at checkout", "+ Доставка рассчитывается при оформлении")}
+                </p>
+                <Link
+                  href="/checkout"
+                  onClick={() => setOpen(false)}
+                  className="block w-full text-center text-[10px] tracking-[0.35em] uppercase font-mono
+                             bg-white text-black hover:bg-zinc-200 py-4 transition-colors"
                 >
-                  {loading ? "Redirecting…" : "Checkout via Stripe"}
-                </button>
-
+                  {t("Checkout", "Оформить заказ")}
+                </Link>
                 <button
-                  onClick={clearCart}
-                  className="w-full text-[9px] tracking-[0.25em] uppercase font-mono
-                             text-zinc-700 hover:text-white transition-colors"
+                  onClick={() => setOpen(false)}
+                  className="block w-full text-center text-[9px] tracking-[0.3em] uppercase font-mono
+                             text-zinc-600 hover:text-white transition-colors"
                 >
-                  Clear cart
+                  {t("Continue Shopping", "Продолжить покупки")}
                 </button>
               </div>
             )}
           </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

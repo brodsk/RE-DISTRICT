@@ -1,26 +1,32 @@
 "use client";
 import { useCart } from "@/lib/cart";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function CartButton() {
-  const { count, setOpen } = useCart();
-
+  const { count, setOpen, open } = useCart();
   return (
     <button
-      onClick={() => setOpen(true)}
-      className="flex items-center gap-2 group transition-opacity duration-200 hover:opacity-60"
-      aria-label={`Cart (${count} items)`}
+      onClick={() => setOpen(!open)}
+      className="relative flex items-center gap-1.5 text-zinc-500 hover:text-white
+                 transition-colors duration-200 font-mono"
+      aria-label="Cart"
     >
-      {/* Minimal bag icon */}
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.1"
-           className="text-zinc-500 group-hover:text-white transition-colors">
-        <rect x="2" y="4.5" width="10" height="8" rx="1"/>
-        <path d="M4.5 4.5V3.5a2.5 2.5 0 015 0v1" strokeLinecap="round"/>
-      </svg>
-      {count > 0 && (
-        <span className="text-[9px] font-mono text-white tabular-nums border border-white/20 px-1.5 py-0.5 min-w-[1.4rem] text-center">
-          {count}
-        </span>
-      )}
+      <span className="text-[10px] tracking-[0.25em] uppercase">
+        Cart
+      </span>
+      <AnimatePresence>
+        {count > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            className="flex items-center justify-center w-4 h-4 bg-white text-black
+                       text-[8px] font-mono rounded-none"
+          >
+            {count}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </button>
   );
 }

@@ -1,42 +1,17 @@
-"use client";
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
 
-export default function CheckoutCancel() {
-  const { setOpen } = useCart();
-
+export default function CancelPage() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-6">
-      <div className="text-center max-w-sm">
-        <p className="text-[9px] font-mono tracking-[0.4em] uppercase text-zinc-600 mb-6">
-          Payment cancelled
-        </p>
-        <h1
-          className="font-light text-white mb-6 leading-none"
-          style={{
-            fontFamily: "ui-monospace, monospace",
-            fontSize: "clamp(2rem, 8vw, 4rem)",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          No charge.
-        </h1>
-        <p className="text-xs font-mono text-zinc-500 leading-relaxed mb-10">
-          Your order was cancelled. Your cart is still intact.
-        </p>
-        <div className="flex flex-col gap-3 items-center">
-          <button
-            onClick={() => { setOpen(true); }}
-            className="text-[10px] tracking-[0.3em] uppercase font-mono text-black bg-white
-                       hover:bg-zinc-200 px-8 py-3.5 transition-colors"
-          >
-            Return to Cart
-          </button>
-          <Link
-            href="/shop"
-            className="text-[9px] tracking-[0.25em] uppercase font-mono text-zinc-600 hover:text-white transition-colors"
-          >
-            Continue Shopping
+      <div className="text-center">
+        <h1 className="font-mono font-light text-white text-3xl mb-4">Cancelled.</h1>
+        <p className="text-[10px] font-mono text-zinc-600 mb-8">Your order was not completed.</p>
+        <div className="flex gap-4 justify-center">
+          <Link href="/checkout" className="text-[9px] tracking-[0.3em] uppercase font-mono bg-white text-black px-6 py-3 hover:bg-zinc-200 transition-colors">
+            Try Again
+          </Link>
+          <Link href="/shop" className="text-[9px] tracking-[0.3em] uppercase font-mono border border-white/10 text-zinc-500 hover:text-white px-6 py-3 transition-colors">
+            Back to Shop
           </Link>
         </div>
       </div>
