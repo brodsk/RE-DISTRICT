@@ -2,11 +2,11 @@
 // Server-side only. Uses Vercel KV when available, /tmp otherwise.
 import type { Product, PageConfig } from "@/lib/types";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
 
 const IS_VERCEL = !!process.env.VERCEL;
 const TMP       = "/tmp/rd";
-const DATA_DIR  = join(process.cwd(), "data");
+// turbopackIgnore: true — suppress NFT trace warning for fs-based data path
+const DATA_DIR  = `${/* turbopackIgnore: true */ process.cwd()}/data`;
 
 function ensureDir(d: string) {
   try { mkdirSync(d, { recursive: true }); } catch {}
@@ -15,10 +15,9 @@ function ensureDir(d: string) {
 // ── File helpers ──────────────────────────────────────────────────────────────
 
 function readJSON<T>(name: string, fallback: T): T {
-  // Try /tmp first (runtime writes), then project data dir (seed)
   const paths = [
-    join(TMP, `${name}.json`),
-    join(DATA_DIR, `${name}.json`),
+    `${TMP}/${name}.json`,
+    `${DATA_DIR}/${name}.json`,
   ];
   for (const p of paths) {
     if (existsSync(p)) {
@@ -30,7 +29,7 @@ function readJSON<T>(name: string, fallback: T): T {
 
 function writeJSON<T>(name: string, data: T): void {
   ensureDir(TMP);
-  writeFileSync(join(TMP, `${name}.json`), JSON.stringify(data, null, 2));
+  writeFileSync(`${TMP}/${name}.json`, JSON.stringify(data, null, 2));
 }
 
 // ── KV helpers ────────────────────────────────────────────────────────────────
