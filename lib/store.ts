@@ -1,61 +1,73 @@
-// lib/store.ts
-// Server-side only. Uses Vercel KV when available, /tmp otherwise.
+/**
+ * RE:DISTRICT — Data Store
+ *
+ * Priority chain:
+ *   1. Vercel KV  → persistent, shared across all devices/deployments
+ *   2. Seed file  → bundled data/products.json (read-only, for initial data)
+ *
+ * ⚠️  /tmp writes are intentionally REMOVED.
+ *     Vercel's /tmp is per-instance and per-cold-start — NOT shared between
+ *     serverless function instances. Writing there causes products created on
+ *     one device to be invisible on others.
+ *
+ * Set these env vars in Vercel dashboard:
+ *   KV_REST_API_URL      (from Vercel KV storage tab)
+ *   KV_REST_API_TOKEN    (from Vercel KV storage tab)
+ *
+ * Without KV: seed data from data/products.json is served (read-only).
+ */
+
 import type { Product, PageConfig } from "@/lib/types";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 
-const IS_VERCEL = !!process.env.VERCEL;
-const TMP       = "/tmp/rd";
-// turbopackIgnore: true — suppress NFT trace warning for fs-based data path
-const DATA_DIR  = `${/* turbopackIgnore: true */ process.cwd()}/data`;
+// ── Seed data (bundled, read-only) ────────────────────────────────────────────
 
-function ensureDir(d: string) {
-  try { mkdirSync(d, { recursive: true }); } catch {}
+function readSeed<T>(name: string, fallback: T): T {
+  const p = join(process.cwd(), "data", `${name}.json`);
+  if (!existsSync(p)) return fallback;
+  try { return JSON.parse(readFileSync(p, "utf-8")); } catch { return fallback; }
 }
 
-// ── File helpers ──────────────────────────────────────────────────────────────
+// ── Vercel KV ─────────────────────────────────────────────────────────────────
 
-function readJSON<T>(name: string, fallback: T): T {
-  const paths = [
-    `${TMP}/${name}.json`,
-    `${DATA_DIR}/${name}.json`,
-  ];
-  for (const p of paths) {
-    if (existsSync(p)) {
-      try { return JSON.parse(readFileSync(p, "utf-8")); } catch {}
-    }
-  }
-  return fallback;
+function hasKV(): boolean {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
-
-function writeJSON<T>(name: string, data: T): void {
-  ensureDir(TMP);
-  writeFileSync(`${TMP}/${name}.json`, JSON.stringify(data, null, 2));
-}
-
-// ── KV helpers ────────────────────────────────────────────────────────────────
 
 async function kvGet<T>(key: string): Promise<T | null> {
-  if (!process.env.KV_REST_API_URL) return null;
+  if (!hasKV()) return null;
   try {
     const { kv } = await import("@vercel/kv");
     return await kv.get<T>(key);
-  } catch { return null; }
+  } catch (e) {
+    console.error("[store] KV get error:", e);
+    return null;
+  }
 }
 
 async function kvSet(key: string, value: unknown): Promise<void> {
-  if (!process.env.KV_REST_API_URL) return;
+  if (!hasKV()) {
+    console.warn("[store] KV not configured — changes will not persist across requests. Set KV_REST_API_URL and KV_REST_API_TOKEN in Vercel.");
+    return;
+  }
   try {
     const { kv } = await import("@vercel/kv");
     await kv.set(key, value);
-  } catch {}
+  } catch (e) {
+    console.error("[store] KV set error:", e);
+  }
 }
 
 // ── Products ──────────────────────────────────────────────────────────────────
 
 export async function getProducts(): Promise<Product[]> {
+  // 1. Try KV (persistent, shared across devices)
   const kv = await kvGet<Product[]>("products");
   if (kv && Array.isArray(kv)) return kv;
-  return readJSON<Product[]>("products", []);
+
+  // 2. Fall back to bundled seed data
+  return readSeed<Product[]>("products", []);
 }
 
 export async function saveProduct(product: Product): Promise<void> {
@@ -64,13 +76,11 @@ export async function saveProduct(product: Product): Promise<void> {
   if (idx >= 0) list[idx] = { ...list[idx], ...product };
   else          list.unshift(product);
   await kvSet("products", list);
-  writeJSON("products", list);
 }
 
 export async function deleteProduct(id: string): Promise<void> {
   const list = (await getProducts()).filter(p => p.id !== id);
   await kvSet("products", list);
-  writeJSON("products", list);
 }
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
@@ -78,12 +88,11 @@ export async function deleteProduct(id: string): Promise<void> {
 export async function getPages(): Promise<Record<string, PageConfig>> {
   const kv = await kvGet<Record<string, PageConfig>>("pages");
   if (kv) return kv;
-  return readJSON<Record<string, PageConfig>>("pages", {});
+  return readSeed<Record<string, PageConfig>>("pages", {});
 }
 
 export async function savePage(page: string, config: PageConfig): Promise<void> {
-  const pages  = await getPages();
-  pages[page]  = config;
+  const pages = await getPages();
+  pages[page] = config;
   await kvSet("pages", pages);
-  writeJSON("pages", pages);
 }

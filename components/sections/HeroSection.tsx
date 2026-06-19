@@ -47,31 +47,24 @@ function useClockState() {
   return { mode, colon, h, m, s, city };
 }
 
-function Display({ left, right, colon, mode }: { left: string; right: string; colon: boolean; mode: string }) {
-  // Clock mode uses monospace (digital watch feel)
-  // Brand/glitch mode uses the serif display font
-  const isClock = mode === "clock";
-
-  const sharedStyle: React.CSSProperties = {
+function Display({ left, right, colon }: { left: string; right: string; colon: boolean }) {
+  // Uses the SAME font-family as the rest of the interface (var(--font-mono) via CSS cascade).
+  // Do NOT set fontFamily here — let it inherit from body/globals.css.
+  const style: React.CSSProperties = {
     fontWeight:    300,
     fontSize:      "clamp(2.8rem, 11vw, 10rem)",
+    letterSpacing: "-0.02em",
     lineHeight:    1,
     color:         "#fff",
     whiteSpace:    "nowrap",
-    display:       "inline",
   };
-
-  const fontStyle: React.CSSProperties = isClock
-    ? { fontFamily: "ui-monospace, 'DM Mono', 'Roboto Mono', 'Courier New', monospace", letterSpacing: "-0.04em" }
-    : { fontFamily: "'Cormorant Garamond', Georgia, serif",                              letterSpacing: "-0.01em" };
 
   return (
     <div style={{ width: "100%", textAlign: "center", lineHeight: 1 }}>
-      <span style={{ ...sharedStyle, ...fontStyle }}>
+      <span className="font-mono" style={style}>
         {left}
         <span style={{ opacity: colon ? 1 : 0.1, transition: "opacity 60ms steps(1)" }}>:</span>
-        {/* DISTRICT is italic in brand mode, digits are upright in clock mode */}
-        <span style={{ fontStyle: isClock ? "normal" : "italic" }}>{right}</span>
+        {right}
       </span>
     </div>
   );
@@ -111,7 +104,7 @@ export default function HeroSection() {
           <AnimatePresence mode="wait">
             <motion.div key={mode} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}>
-              <Display left={left} right={right} colon={colon} mode={mode} />
+              <Display left={left} right={right} colon={colon} />
             </motion.div>
           </AnimatePresence>
         </motion.div>
