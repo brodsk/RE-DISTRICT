@@ -5,11 +5,13 @@ export async function GET() {
   const status   = getStoreStatus();
   const products = await getProducts();
   return NextResponse.json({
-    ...status,
+    backend:      status.backend,
+    persistent:   status.persistent,
+    redis:        status.redis,
+    local:        status.local,
     productCount: products.length,
-    backend: status.kv ? "vercel-kv" : status.blob ? "vercel-blob" : status.local ? "local-file" : "seed-only",
-    message: status.persistent
-      ? "Store is persistent."
-      : "⚠️ No persistent backend. Set KV_REST_API_URL+KV_REST_API_TOKEN in Vercel to persist products.",
+    message:      status.persistent
+      ? `Store is persistent (${status.backend}).`
+      : "⚠️ No persistent backend. Set redistrict_KV_REST_API_URL and redistrict_KV_REST_API_TOKEN in Vercel.",
   }, { headers: { "Cache-Control": "no-store" } });
 }

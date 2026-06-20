@@ -58,9 +58,9 @@ export async function POST(req: NextRequest) {
     ok:           !!saved,
     id:           product.id,
     productCount: list.length,
-    backend:      status.kv ? "vercel-kv" : status.blob ? "vercel-blob" : status.local ? "local-file" : "seed-only",
+    backend:      status.backend,
     persistent:   status.persistent,
-    warning:      status.persistent ? null : "Products are NOT persistent — configure Vercel KV or Blob storage.",
+    warning:      status.persistent ? null : "Products are NOT persistent — configure Vercel KV (Upstash).",
   });
 }
 
