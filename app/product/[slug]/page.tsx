@@ -25,7 +25,10 @@ export default function ProductPage() {
   const [added,   setAdded]   = useState(false);
 
   useEffect(() => {
-    fetch("/api/products", { cache: "no-store" })
+    fetch(`/api/products?t=${Date.now()}`, {
+      cache:   "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
       .then(r => r.json())
       .then((list: Product[]) => {
         const found = list.find(p => p.slug === slug);

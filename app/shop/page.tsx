@@ -95,7 +95,10 @@ function ShopContent() {
   const [search,   setSearch]     = useState("");
 
   useEffect(() => {
-    fetch("/api/products", { cache: "no-store" })
+    fetch(`/api/products?t=${Date.now()}`, {
+      cache:   "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
       .then(r => r.json()).then(d => { setProducts(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);

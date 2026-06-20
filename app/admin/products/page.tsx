@@ -21,13 +21,26 @@ export default function AdminProductsPage() {
 
   const load = () => {
     setLoading(true);
-    fetch("/api/products", { cache: "no-store" })
+    // Force bypass of any cache — critical for seeing newly created products
+    fetch(`/api/products?t=${Date.now()}`, {
+      cache:   "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
       .then(r => r.json())
-      .then(d => { setProducts(Array.isArray(d) ? d : []); setLoading(false); })
+      .then(d => {
+        setProducts(Array.isArray(d) ? d : []);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  // Re-fetch when page becomes visible (e.g. navigating back from create page)
+  useEffect(() => {
+    load();
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   const del = async (id: string, name: string) => {
     if (!confirm(L(lang, `Delete "${name}"?`, `Удалить "${name}"?`))) return;
@@ -42,10 +55,16 @@ export default function AdminProductsPage() {
           <p className="text-[8px] tracking-[0.4em] uppercase text-zinc-600 mb-2">{L(lang,"Manage","Управление")}</p>
           <h1 className="text-3xl font-light" style={{ fontFamily: "serif" }}>{L(lang,"Products","Товары")}</h1>
         </div>
-        <Link href="/admin/products/new"
-          className="text-[9px] tracking-[0.3em] uppercase bg-white text-black px-5 py-2.5 hover:bg-zinc-200 transition-colors">
-          + {L(lang,"New","Новый")}
-        </Link>
+        <div className="flex items-center gap-3">
+          <button onClick={load}
+            className="text-[9px] tracking-[0.3em] uppercase border border-white/10 hover:border-white/40 text-zinc-600 hover:text-white px-4 py-2.5 transition-all font-mono">
+            {L(lang,"Refresh","Обновить")}
+          </button>
+          <Link href="/admin/products/new"
+            className="text-[9px] tracking-[0.3em] uppercase bg-white text-black px-5 py-2.5 hover:bg-zinc-200 transition-colors font-mono">
+            + {L(lang,"New","Новый")}
+          </Link>
+        </div>
       </div>
 
       {loading ? (

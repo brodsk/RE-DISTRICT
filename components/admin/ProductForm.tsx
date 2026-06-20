@@ -69,12 +69,26 @@ export default function ProductForm({ initial, isNew }: { initial: Product; isNe
       const data = await res.json();
       if (data.ok) {
         setSaved(true);
-        setTimeout(() => { setSaved(false); if (isNew) router.push("/admin/products"); }, 1200);
+        // Show warning if storage is not persistent
+        if (!data.persistent) {
+          setSaveErr(
+            L(lang,
+              `⚠️ Saved to "${data.backend}" but storage is NOT persistent — products will disappear on cold start. Configure Vercel KV.`,
+              `⚠️ Сохранено в "${data.backend}", но хранилище не постоянное — товары исчезнут при перезапуске. Настройте Vercel KV.`
+            )
+          );
+        }
+        // Navigate immediately on new product creation
+        if (isNew) {
+          router.push("/admin/products");
+        } else {
+          setTimeout(() => setSaved(false), 2000);
+        }
       } else {
-        setSaveErr(data.error ?? "Save failed");
+        setSaveErr(data.error ?? L(lang, "Save failed", "Ошибка сохранения"));
       }
     } catch (err) {
-      setSaveErr(err instanceof Error ? err.message : "Network error");
+      setSaveErr(err instanceof Error ? err.message : L(lang, "Network error", "Ошибка сети"));
     } finally { setSaving(false); }
   };
 
