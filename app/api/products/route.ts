@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Product } from "@/lib/types";
-import { getProducts, saveProduct, deleteProduct, getStoreStatus } from "@/lib/store";
+import { getProducts, saveProduct, deleteProduct, getStoreStatus, generateRdId } from "@/lib/store";
 
 const AUTH     = process.env.ADMIN_PASSWORD ?? "redistrict2026";
 const isAuth   = (req: NextRequest) => req.headers.get("x-admin-password") === AUTH;
@@ -38,6 +38,11 @@ export async function POST(req: NextRequest) {
   if (!product.name) return NextResponse.json({ error: "Missing product.name" }, { status: 400 });
 
   product.createdAt = product.createdAt ?? new Date().toISOString();
+
+  // Auto-assign RD Watch ID for new products (never overwrite existing)
+  if (!product.rdWatchId) {
+    product.rdWatchId = await generateRdId(product.category);
+  }
 
   try {
     await saveProduct(product);

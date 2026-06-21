@@ -1,9 +1,83 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCart } from "@/lib/cart";
 import { useLang } from "@/lib/lang";
 import { SHIPPING_OPTIONS, COUNTRIES } from "@/lib/shipping";
 import Link from "next/link";
+
+// ── Mock Packeta pickup data — replace with real Packeta API call ──────────────
+// Structure: { [countryCode]: { [city]: PickupPoint[] } }
+// Real API: GET https://www.zasilkovna.cz/api/v5/{apiKey}/branch?country={cc}&city={city}
+interface PickupPoint { id: string; name: string; address: string; }
+const MOCK_PICKUPS: Record<string, Record<string, PickupPoint[]>> = {
+  SK: {
+    Trenčín:    [{ id:"sk-tn-001", name:"Packeta – Trenčín Centrum",  address:"Mierové nám. 2, 911 01 Trenčín" },
+                 { id:"sk-tn-002", name:"Packeta – Trenčín Laugaricio",address:"Laugaricio Shopping, Trenčín"   }],
+    Bratislava: [{ id:"sk-ba-001", name:"Packeta – Bratislava Aupark",  address:"Einsteinova 18, 851 01"        },
+                 { id:"sk-ba-002", name:"Packeta – Bratislava Eurovea", address:"Pribinova 8, 821 09"           }],
+  },
+  CZ: {
+    Praha:  [{ id:"cz-pr-001", name:"Zásilkovna – Praha 1 Centrum", address:"Václavské nám. 1, 110 00" },
+             { id:"cz-pr-002", name:"Zásilkovna – Praha Anděl",      address:"Nádražní 32, 150 00"     }],
+    Brno:   [{ id:"cz-br-001", name:"Zásilkovna – Brno Centrum",    address:"Náměstí Svobody 1, 602 00"}],
+  },
+  PL: {
+    Warszawa: [{ id:"pl-wa-001", name:"Packeta – Warszawa Centrum", address:"ul. Marszałkowska 1, 00-001" }],
+    Kraków:   [{ id:"pl-kr-001", name:"Packeta – Kraków Stare Miasto",address:"ul. Floriańska 5, 31-019" }],
+  },
+};
+
+function PacketaPickupSelector({
+  country, city, onSelect, t,
+}: {
+  country:  string;
+  city:     string;
+  onSelect: (id: string) => void;
+  t:        (en: string, ru: string) => string;
+}) {
+  const [selected, setSelected] = useState("");
+
+  const points = useMemo(() => {
+    if (!city) return [];
+    const normalised = city.trim();
+    const byCountry  = MOCK_PICKUPS[country] ?? {};
+    // Case-insensitive city match
+    const key = Object.keys(byCountry).find(k => k.toLowerCase() === normalised.toLowerCase());
+    return key ? byCountry[key] : [];
+  }, [country, city]);
+
+  if (points.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <label className="block text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-600 mb-2">
+        {t("Packeta Pickup Points","Пункты выдачи Packeta")}
+      </label>
+      <div className="space-y-2">
+        {points.map(p => (
+          <label key={p.id}
+            className={`flex items-start gap-3 border px-4 py-3 cursor-pointer transition-all ${
+              selected === p.id ? "border-white/40 bg-white/[0.03]" : "border-white/10 hover:border-white/20"
+            }`}
+            onClick={() => { setSelected(p.id); onSelect(p.id); }}
+          >
+            <div className={`w-3 h-3 rounded-full border flex-shrink-0 mt-0.5 flex items-center justify-center ${
+              selected === p.id ? "border-white" : "border-white/30"
+            }`}>
+              {selected === p.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </div>
+            <div>
+              <p className="text-[10px] font-mono text-white">{p.name}</p>
+              <p className="text-[8px] font-mono text-zinc-600">{p.address}</p>
+              <p className="text-[7px] font-mono text-zinc-800 mt-0.5">ID: {p.id}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const inp = `w-full bg-transparent border border-white/10 hover:border-white/20 focus:border-white/40
   outline-none px-4 py-3 text-sm text-white font-mono placeholder:text-zinc-800 transition-colors`;
@@ -78,6 +152,18 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-black pt-28 pb-24 px-6 md:px-12">
+      {/* FIX #4: force dark text on white bg for <option> elements */}
+      <style>{`
+        .checkout-select option {
+          background: #ffffff;
+          color: #111111;
+        }
+        .checkout-select option:hover,
+        .checkout-select option:checked {
+          background: #374151;
+          color: #ffffff;
+        }
+      `}</style>
       <div className="max-w-screen-lg mx-auto">
         <div className="mb-10">
           <p className="text-[9px] tracking-[0.45em] uppercase font-mono text-zinc-700 mb-2">
@@ -126,7 +212,11 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                   <div>
                     <label className={lbl}>{t("Country","Страна")} *</label>
-                    <select className={inp + " bg-black"} required value={form.country} onChange={e => set("country", e.target.value)}>
+                    <select
+                      style={{ background: "white", color: "#111" }}
+                      className="w-full border border-white/10 outline-none px-4 py-3 text-sm font-mono transition-colors checkout-select"
+                      required value={form.country} onChange={e => set("country", e.target.value)}
+                    >
                       {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                     </select>
                   </div>
@@ -170,6 +260,14 @@ export default function CheckoutPage() {
                        "Доставка через Packeta (Zásielkovňa) из Тренчина, Словакия.")}
                   </p>
                 </div>
+
+                {/* Fix #5: Pickup point selector (mock — structure ready for Packeta API) */}
+                <PacketaPickupSelector
+                  country={form.country}
+                  city={form.city}
+                  onSelect={pointId => set("address", pointId)}
+                  t={t}
+                />
               </section>
 
               {error && (

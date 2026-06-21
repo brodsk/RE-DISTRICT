@@ -144,14 +144,10 @@ export default function HeroSection() {
 
         {/* CTA */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          className="flex items-center justify-center">
           <Link href="/shop"
             className="text-[10px] tracking-[0.4em] uppercase font-mono text-black bg-white hover:bg-zinc-200 px-8 py-3.5 transition-colors">
             {t("Explore Watches", "Смотреть часы")}
-          </Link>
-          <Link href="/faq"
-            className="text-[10px] tracking-[0.4em] uppercase font-mono text-zinc-600 hover:text-white border border-white/10 hover:border-white/30 px-8 py-3.5 transition-all">
-            FAQ
           </Link>
         </motion.div>
       </div>

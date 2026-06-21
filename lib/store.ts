@@ -9,7 +9,8 @@
  * Local dev fallback: .data/*.json files
  */
 
-import type { Product, PageConfig } from "@/lib/types";
+import type { Product, PageConfig, ProductCategory } from "@/lib/types";
+import { CATEGORY_PREFIX } from "@/lib/types";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
@@ -172,4 +173,22 @@ export function getStoreStatus(): {
     persistent: redis || local,
     backend:    redis ? "upstash-redis" : local ? "local-file" : "seed-only (not persistent)",
   };
+}
+
+
+// ── RD Watch ID system ────────────────────────────────────────────────────────
+// Format: RD-[PREFIX]-[0001]
+// Each category (CST/RST/CRT) has its own counter in the store.
+// Counters never reset. IDs are immutable once assigned.
+
+async function getCounter(prefix: string): Promise<number> {
+  return storeRead<number>(`counter:${prefix}`, 0);
+}
+
+export async function generateRdId(category: ProductCategory): Promise<string> {
+  const prefix = CATEGORY_PREFIX[category];
+  const current = await getCounter(prefix);
+  const next    = current + 1;
+  await storeWrite(`counter:${prefix}`, next);
+  return `RD-${prefix}-${String(next).padStart(4, "0")}`;
 }

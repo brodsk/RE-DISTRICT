@@ -3,8 +3,16 @@
 export type ProductCategory = "custom" | "restored" | "curated";
 export type ProductStatus   = "available" | "limited" | "sold" | "concept";
 
+// Category prefixes for RD ID system
+export const CATEGORY_PREFIX: Record<ProductCategory, string> = {
+  custom:   "CST",
+  restored: "RST",
+  curated:  "CRT",
+};
+
 export interface Product {
   id:             string;
+  rdWatchId?:     string;   // RD-CST-0001 / RD-RST-0001 / RD-CRT-0001
   name:           string;
   brand:          string;
   slug:           string;

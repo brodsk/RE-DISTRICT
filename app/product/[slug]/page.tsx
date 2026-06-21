@@ -112,7 +112,7 @@ export default function ProductPage() {
               <p className="text-2xl font-mono text-white tabular-nums">€{product.price}</p>
             </div>
 
-            <p className="text-xs text-zinc-400 leading-relaxed mb-8 font-mono">{product.description}</p>
+            <p className="text-xs text-zinc-400 leading-relaxed mb-8 font-mono" style={{ whiteSpace: "pre-line" }}>{product.description}</p>
 
             {canBuy ? (
               <button onClick={handleAdd}
@@ -130,7 +130,7 @@ export default function ProductPage() {
             {product.story && (
               <div className="mt-8 pt-8 border-t border-white/5">
                 <p className="text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-600 mb-3">{t("Story","История")}</p>
-                <p className="text-xs font-mono text-zinc-500 leading-relaxed italic">{product.story}</p>
+                <p className="text-xs font-mono text-zinc-500 leading-relaxed italic" style={{ whiteSpace: "pre-line" }}>{product.story}</p>
               </div>
             )}
 
