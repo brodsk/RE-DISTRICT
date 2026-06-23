@@ -12,10 +12,11 @@ const catL:  Record<ProductCategory,{en:string;ru:string}> = {
   curated:  {en:"Curated",  ru:"Подбор"},
 };
 const statL: Record<ProductStatus,{en:string;ru:string}> = {
-  available: {en:"Available",     ru:"В наличии"},
-  limited:   {en:"Limited",       ru:"Лимитировано"},
-  sold:      {en:"Sold",          ru:"Продано"},
-  concept:   {en:"Concept",       ru:"Концепт"},
+  available: {en:"Available",  ru:"В наличии"},
+  reserved:  {en:"Reserved",   ru:"Зарезервировано"},
+  limited:   {en:"Limited",    ru:"Лимитировано"},
+  sold:      {en:"Sold",       ru:"Продано"},
+  concept:   {en:"Concept",    ru:"Концепт"},
 };
 
 function slugify(s: string) {
@@ -430,6 +431,89 @@ export default function ProductForm({ initial, isNew }: { initial: Product; isNe
           </div>
         </section>
 
+        {/* ── Passport / Grade / Condition ── */}
+        <section>
+          <p className="text-[8px] tracking-[0.35em] uppercase text-zinc-600 mb-5 pb-3 border-b border-white/5">
+            {L(lang, "Passport & Condition", "Паспорт и состояние")}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+            {/* Grade */}
+            <div>
+              <label className={lbl}>{L(lang, "Grade", "Грейд")}</label>
+              <select
+                className={selectCls + " admin-select"}
+                value={form.grade ?? ""}
+                onChange={e => set("grade", (e.target.value as "A" | "B" | "C") || undefined)}
+              >
+                <option value="">{L(lang, "Not set", "Не задан")}</option>
+                <option value="A">A — {L(lang, "Excellent", "Отличное")}</option>
+                <option value="B">B — {L(lang, "Good", "Хорошее")}</option>
+                <option value="C">C — {L(lang, "Collector", "Коллекционное")}</option>
+              </select>
+            </div>
+            {/* Module */}
+            <div>
+              <label className={lbl}>{L(lang, "Module", "Модуль")}</label>
+              <input
+                className={inp}
+                value={form.module ?? ""}
+                onChange={e => set("module", e.target.value || undefined)}
+                placeholder="593"
+              />
+            </div>
+            {/* Movement type */}
+            <div>
+              <label className={lbl}>{L(lang, "Movement Type", "Тип механизма")}</label>
+              <input
+                className={inp}
+                value={form.movementType ?? ""}
+                onChange={e => set("movementType", e.target.value || undefined)}
+                placeholder={L(lang, "Digital Quartz", "Цифровой кварц")}
+              />
+            </div>
+          </div>
+
+          {/* Service Summary */}
+          <div className="mb-5">
+            <label className={lbl}>{L(lang, "Service Summary", "Сервисная сводка")}</label>
+            <textarea
+              className={inp + " resize-none"}
+              rows={4}
+              value={form.serviceSummary ?? ""}
+              onChange={e => set("serviceSummary", e.target.value || undefined)}
+              placeholder={L(
+                lang,
+                "Battery replaced\nCleaned and tested\nButtons functioning",
+                "Батарея заменена\nПочищено и протестировано\nКнопки работают"
+              )}
+            />
+          </div>
+
+          {/* Condition fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {([
+              { k: "case",  en: "Case Condition",  ru: "Состояние корпуса",  ph_en: "Excellent – light marks", ph_ru: "Отличное – лёгкие следы" },
+              { k: "glass", en: "Glass Condition",  ru: "Состояние стекла",   ph_en: "Mint – no scratches",    ph_ru: "Минт – без царапин"     },
+              { k: "strap", en: "Strap Condition",  ru: "Состояние ремешка",  ph_en: "Good – light wear",      ph_ru: "Хорошее – лёгкий износ" },
+            ] as const).map(f => (
+              <div key={f.k}>
+                <label className={lbl}>{L(lang, f.en, f.ru)}</label>
+                <input
+                  className={inp}
+                  value={form.condition?.[f.k] ?? ""}
+                  onChange={e => set("condition", {
+                    case:  form.condition?.case  ?? "",
+                    glass: form.condition?.glass ?? "",
+                    strap: form.condition?.strap ?? "",
+                    [f.k]: e.target.value,
+                  })}
+                  placeholder={L(lang, f.ph_en, f.ph_ru)}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* ── Featured toggle ── */}
         <section>
           <label className="flex items-center gap-3 cursor-pointer w-fit">
@@ -478,6 +562,73 @@ export default function ProductForm({ initial, isNew }: { initial: Product; isNe
           </button>
         </div>
       </form>
+
+      {/* ── Print Materials — only when product has been saved (has rdWatchId) ── */}
+      {form.rdWatchId && (
+        <div className="mt-10 pt-8 border-t border-white/5">
+          <p className="text-[8px] tracking-[0.35em] uppercase text-zinc-600 mb-5">
+            {L(lang, "Print Materials", "Печатные материалы")}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {/* Card PDF — opens print page in new tab, type=card */}
+            <a
+              href={`/admin/products/print?id=${form.id}&type=card`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[9px] tracking-[0.3em] uppercase font-mono
+                         border border-white/15 hover:border-white/50 text-zinc-400 hover:text-white
+                         px-6 py-3 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2" y="3" width="20" height="14" rx="1"/>
+                <path d="M8 21h8M12 17v4"/>
+              </svg>
+              {L(lang, "Generate Card PDF", "Карточка для печати")}
+              <span className="text-zinc-700 text-[7px]">85×55mm</span>
+            </a>
+
+            {/* Label PDF — opens print page, type=label */}
+            <a
+              href={`/admin/products/print?id=${form.id}&type=label`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[9px] tracking-[0.3em] uppercase font-mono
+                         border border-white/15 hover:border-white/50 text-zinc-400 hover:text-white
+                         px-6 py-3 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              {L(lang, "Generate Label PDF", "Стикер для кейса")}
+              <span className="text-zinc-700 text-[7px]">50×25mm</span>
+            </a>
+
+            {/* Digital Passport link */}
+            <a
+              href={`/watch/${form.rdWatchId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[9px] tracking-[0.3em] uppercase font-mono
+                         border border-white/10 hover:border-white/30 text-zinc-600 hover:text-zinc-300
+                         px-6 py-3 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              {L(lang, "Digital Passport ↗", "Цифровой паспорт ↗")}
+              <span className="text-zinc-700 text-[7px]">{form.rdWatchId}</span>
+            </a>
+          </div>
+          <p className="text-[8px] font-mono text-zinc-800 mt-4">
+            {L(
+              lang,
+              "Opens print preview in new tab. Use browser Print (⌘P) to save as PDF.",
+              "Открывает предпросмотр в новой вкладке. Используйте Печать (⌘P) браузера для сохранения в PDF."
+            )}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

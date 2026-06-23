@@ -1,7 +1,8 @@
 // lib/types.ts
 
 export type ProductCategory = "custom" | "restored" | "curated";
-export type ProductStatus   = "available" | "limited" | "sold" | "concept";
+export type ProductStatus   = "available" | "reserved" | "sold" | "limited" | "concept";
+export type ProductGrade    = "A" | "B" | "C";
 
 // Category prefixes for RD ID system
 export const CATEGORY_PREFIX: Record<ProductCategory, string> = {
@@ -10,9 +11,15 @@ export const CATEGORY_PREFIX: Record<ProductCategory, string> = {
   curated:  "CRT",
 };
 
+export interface ProductCondition {
+  case:   string;  // e.g. "Excellent – minor scratches"
+  glass:  string;  // e.g. "Mint – no scratches"
+  strap:  string;  // e.g. "Good – light wear"
+}
+
 export interface Product {
   id:             string;
-  rdWatchId?:     string;   // RD-CST-0001 / RD-RST-0001 / RD-CRT-0001
+  rdWatchId?:     string;       // RD-CST-0001 / RD-RST-0001 / RD-CRT-0001
   name:           string;
   brand:          string;
   slug:           string;
@@ -28,7 +35,13 @@ export interface Product {
   featured:       boolean;
   year:           number;
   specifications: Record<string, string>;
-  createdAt?:     string;
+  // Passport fields
+  grade?:          ProductGrade;
+  serviceSummary?: string;
+  module?:         string;      // e.g. "Casio 3157"
+  movementType?:   string;      // e.g. "Quartz LCD"
+  condition?:      ProductCondition;
+  createdAt?:      string;
 }
 
 export interface CartItem {
