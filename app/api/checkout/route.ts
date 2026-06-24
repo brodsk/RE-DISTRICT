@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { CheckoutItem, OrderData, SavedOrder } from "@/lib/types";
 import { SHIPPING_OPTIONS } from "@/lib/shipping";
 import { saveOrder } from "@/lib/store";
+import { sendOrderEmails } from "@/lib/email";
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -135,6 +136,12 @@ export async function POST(req: NextRequest) {
       pickupPointAddress: orderData.pickupPointAddress,
     };
     await saveOrder(order);
+
+    // Send customer confirmation + admin notification
+    // Non-blocking: email failures don't affect the checkout redirect
+    sendOrderEmails(order).catch(err =>
+      console.error("[checkout] Email send error:", err)
+    );
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
