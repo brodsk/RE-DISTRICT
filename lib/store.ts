@@ -9,7 +9,7 @@
  * Local dev fallback: .data/*.json files
  */
 
-import type { Product, PageConfig, ProductCategory } from "@/lib/types";
+import type { Product, PageConfig, ProductCategory, SavedOrder } from "@/lib/types";
 import { CATEGORY_PREFIX } from "@/lib/types";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
@@ -145,6 +145,18 @@ export async function deleteProduct(id: string): Promise<void> {
   const list = (await getProducts()).filter(p => p.id !== id);
   console.log(`[store] deleteProduct ${id} — total: ${list.length}`);
   await storeWrite("products", list);
+}
+
+export async function getOrders(): Promise<SavedOrder[]> {
+  return storeRead<SavedOrder[]>("orders", []);
+}
+
+export async function saveOrder(order: SavedOrder): Promise<void> {
+  const list = await getOrders();
+  const idx  = list.findIndex(o => o.id === order.id);
+  if (idx >= 0) list[idx] = { ...list[idx], ...order };
+  else          list.unshift(order);
+  await storeWrite("orders", list.slice(0, 100));
 }
 
 export async function getPages(): Promise<Record<string, PageConfig>> {

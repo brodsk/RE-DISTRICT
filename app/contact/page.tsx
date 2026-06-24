@@ -81,10 +81,8 @@ export default function ContactPage() {
             touch
           </h1>
 
-          {/* "Rebuild your time" tagline — synced blink on colon */}
           <p className="font-mono font-light text-zinc-500 mb-5" style={{ fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)", letterSpacing: "-0.01em" }}>
-            Rebuild your time
-            <span style={{ opacity: colonOn ? 1 : 0.1, transition: "opacity 60ms steps(1)" }}>.</span>
+            Rebuild your time.
           </p>
 
           <p className="text-[10px] font-mono text-zinc-600 leading-relaxed max-w-md">

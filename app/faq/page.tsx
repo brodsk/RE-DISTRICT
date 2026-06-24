@@ -30,7 +30,7 @@ export default function FAQPage() {
           <p className="text-[9px] tracking-[0.45em] uppercase font-mono text-zinc-600 mb-4">{t("Information","Информация")}</p>
           <h1 className="font-light text-white leading-none"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2.5rem, 8vw, 5rem)" }}>
-            F<span style={{ opacity: 0.2 }}>:</span>A<span style={{ opacity: 0.2 }}>:</span>Q
+            FAQ
           </h1>
         </AnimatedSection>
 

@@ -117,6 +117,10 @@ function ShopContent() {
 
   return (
     <div className="min-h-screen bg-black pt-28 md:pt-32 pb-24 px-6 md:px-12">
+      <style>{`
+        .shop-select { background: #050505; color: #f4f4f5; color-scheme: dark; }
+        .shop-select option { background: #09090b; color: #e4e4e7; }
+      `}</style>
       <div className="max-w-screen-xl mx-auto">
         <AnimatedSection className="mb-12">
           <p className="text-[9px] tracking-[0.45em] uppercase text-zinc-700 font-mono mb-3">
@@ -124,7 +128,7 @@ function ShopContent() {
           </p>
           <h1 className="font-mono font-light text-white leading-none"
             style={{ fontSize: "clamp(2rem, 6vw, 5rem)", letterSpacing: "-0.02em" }}>
-            {t("Shop.","Каталог.")}
+            {t("Shop","Каталог")}
           </h1>
         </AnimatedSection>
 
@@ -143,7 +147,7 @@ function ShopContent() {
             <input placeholder={t("Search…","Поиск…")} value={search}
               onChange={e => setSearch(e.target.value)} className={inp + " w-36"} />
             <select value={sort} onChange={e => setSort(e.target.value)}
-              className={inp + " bg-black cursor-pointer"}>
+              className={inp + " shop-select cursor-pointer"}>
               {sorts.map(s => <option key={s.v} value={s.v}>{t(s.en, s.ru)}</option>)}
             </select>
           </div>

@@ -62,23 +62,51 @@ export interface CheckoutItem {
 }
 
 export interface ShippingOption {
-  id:       string;
-  label:    string;
-  country:  string;
-  price:    number;
-  days:     string;
-  carrier:  string;
+  id:             string;
+  label:          string;
+  country:        string;
+  price:          number;
+  days:           string;
+  carrier:        string;
+  deliveryMethod: DeliveryMethod;
 }
 
+export type DeliveryMethod = "home" | "pickup";
+
 export interface OrderData {
-  name:          string;
-  email:         string;
-  phone:         string;
-  country:       string;
-  city:          string;
-  address:       string;
-  shippingId:    string;
-  pickupPointId?: string;
+  name:                string;
+  email:               string;
+  phone:               string;
+  country:             string;
+  city:                string;
+  address:             string;
+  shippingId:          string;
+  deliveryMethod:      DeliveryMethod;
+  pickupPointId?:      string;
+  pickupPointName?:    string;
+  pickupPointAddress?: string;
+}
+
+export interface SavedOrder {
+  id:                  string;
+  stripeSessionId:     string;
+  status:              "checkout_created" | "paid" | "cancelled";
+  createdAt:           string;
+  items:               CheckoutItem[];
+  total:               number;
+  shippingPrice:       number;
+  grandTotal:          number;
+  customerName:        string;
+  customerEmail:       string;
+  customerPhone:       string;
+  country:             string;
+  city:                string;
+  address:             string;
+  shippingId:          string;
+  deliveryMethod:      DeliveryMethod;
+  pickupPointId?:      string;
+  pickupPointName?:    string;
+  pickupPointAddress?: string;
 }
 
 // Block builder types

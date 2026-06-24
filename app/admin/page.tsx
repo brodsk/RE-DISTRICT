@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Product } from "@/lib/types";
+import { Product, SavedOrder } from "@/lib/types";
 import { useAdminLang, L } from "@/app/admin/layout";
 
 interface StoreStatus {
@@ -16,6 +16,7 @@ interface StoreStatus {
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders,   setOrders]   = useState<SavedOrder[]>([]);
   const [status,   setStatus]   = useState<StoreStatus | null>(null);
   const [lang] = useAdminLang();
 
@@ -25,6 +26,9 @@ export default function AdminDashboard() {
 
     fetch("/api/store-status", { cache: "no-store" })
       .then(r => r.json()).then(setStatus).catch(() => {});
+
+    fetch("/api/orders", { cache: "no-store" })
+      .then(r => r.json()).then(d => setOrders(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   const stats = {
@@ -89,6 +93,50 @@ export default function AdminDashboard() {
             <p className="text-4xl font-light tabular-nums">{s.v}</p>
           </div>
         ))}
+      </div>
+
+      <div className="mb-10">
+        <p className="text-[8px] tracking-[0.3em] uppercase text-zinc-600 mb-4">
+          {L(lang,"Recent Orders","Последние заказы")}
+        </p>
+        <div className="border-t border-white/5">
+          {orders.length === 0 ? (
+            <p className="text-[9px] font-mono text-zinc-700 py-5 border-b border-white/5">
+              {L(lang,"No checkout orders yet.","Заказов пока нет.")}
+            </p>
+          ) : orders.slice(0, 8).map(order => (
+            <div key={order.id} className="border-b border-white/5 py-5 grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-2">
+                <p className="text-[10px] font-mono text-white">{order.customerName || order.customerEmail || order.id}</p>
+                <p className="text-[8px] font-mono text-zinc-700 mt-1">
+                  {new Date(order.createdAt).toLocaleString()} · {order.status}
+                </p>
+              </div>
+              <div>
+                <p className="text-[8px] tracking-[0.25em] uppercase text-zinc-700 mb-1">
+                  {L(lang,"Delivery","Доставка")}
+                </p>
+                <p className="text-[9px] font-mono text-zinc-400">
+                  {order.deliveryMethod === "pickup" ? "Packeta Pickup Point" : "Home Delivery"}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-[8px] tracking-[0.25em] uppercase text-zinc-700 mb-1">
+                  {L(lang,"Pickup Point","Пункт выдачи")}
+                </p>
+                {order.deliveryMethod === "pickup" ? (
+                  <>
+                    <p className="text-[9px] font-mono text-zinc-300">{order.pickupPointName || "-"}</p>
+                    <p className="text-[8px] font-mono text-zinc-600">{order.pickupPointAddress || "-"}</p>
+                    <p className="text-[7px] font-mono text-zinc-800 mt-1">ID: {order.pickupPointId || "-"}</p>
+                  </>
+                ) : (
+                  <p className="text-[9px] font-mono text-zinc-600">{order.address || "-"}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Actions */}
