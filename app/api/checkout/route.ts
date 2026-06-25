@@ -79,7 +79,10 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    const itemTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const itemTotal = items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
 
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(item => ({
       quantity: item.quantity,
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
         unit_amount: Math.round(item.price * 100),
         product_data: {
           name: item.name,
-          ...(item.image ? { images: [item.image] } : {}),
+          // ❌ images УБРАНЫ НАМЕРЕННО — они ломали Stripe
         },
       },
     }));
@@ -100,7 +103,11 @@ export async function POST(req: NextRequest) {
       shipping_options: [toStripeShippingOption(shipping)],
 
       ...(shipping.deliveryMethod === "home"
-        ? { shipping_address_collection: { allowed_countries: ALLOWED_COUNTRIES } }
+        ? {
+            shipping_address_collection: {
+              allowed_countries: ALLOWED_COUNTRIES,
+            },
+          }
         : {}),
 
       phone_number_collection: { enabled: true },
@@ -160,7 +167,7 @@ export async function POST(req: NextRequest) {
     await saveOrder(order);
 
     sendOrderEmails(order).catch(err =>
-      console.error("[checkout] Email send error:", err)
+      console.error("[checkout] Email error:", err)
     );
 
     return NextResponse.json({ url: session.url });
