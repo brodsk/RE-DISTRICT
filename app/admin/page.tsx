@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Product, SavedOrder } from "@/lib/types";
@@ -15,180 +14,178 @@ interface StoreStatus {
   message: string;
 }
 
-/* ─────────────────────────────────────────────
-   ORDER STATUS (fixed logic)
-───────────────────────────────────────────── */
-
-type OrderStatus = "paid" | "unpaid" | "failed";
+/**
+ * Нормализованный статус заказа (единая логика)
+ */
+type OrderStatus = "paid" | "pending" | "unpaid" | "failed";
 
 function resolveStatus(order: SavedOrder): OrderStatus {
-  // если позже добавишь webhook — будет order.status === "paid"
   if (order.status === "paid") return "paid";
 
-  if (order.status === "cancelled" || order.status === "failed") {
+  if (order.status === "failed" || order.status === "cancelled") {
     return "failed";
   }
 
-  // checkout_created / undefined → это НЕ paid
+  // checkout_created = создан, но не оплачен
+  if (order.status === "checkout_created") return "pending";
+
   return "unpaid";
 }
 
-const STATUS = {
-  paid: {
-    label: { en: "PAID", ru: "ОПЛАЧЕН" },
-    class: "text-emerald-400 bg-emerald-950/40 border-emerald-800",
-    dot: "bg-emerald-400",
-  },
-  unpaid: {
-    label: { en: "UNPAID", ru: "НЕ ОПЛАЧЕН" },
-    class: "text-yellow-400 bg-yellow-950/40 border-yellow-800",
-    dot: "bg-yellow-400 animate-pulse",
-  },
-  failed: {
-    label: { en: "FAILED", ru: "ОШИБКА" },
-    class: "text-red-400 bg-red-950/40 border-red-800",
-    dot: "bg-red-500",
-  },
+const STATUS_LABEL: Record<OrderStatus, { en: string; ru: string }> = {
+  paid: { en: "PAID", ru: "ОПЛАЧЕН" },
+  pending: { en: "PENDING", ru: "ОЖИДАЕТ ОПЛАТЫ" },
+  unpaid: { en: "UNPAID", ru: "БЕЗ ОПЛАТЫ" },
+  failed: { en: "FAILED", ru: "ОТМЕНЁН" },
 };
 
-/* ───────────────────────────────────────────── */
+const STATUS_STYLE: Record<OrderStatus, string> = {
+  paid: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/60",
+  pending: "bg-yellow-950/60 text-yellow-400 border border-yellow-800/60",
+  unpaid: "bg-zinc-900 text-zinc-400 border border-zinc-800",
+  failed: "bg-red-950/60 text-red-500 border border-red-800/60",
+};
 
-function money(amount?: number) {
-  return `€${((amount ?? 0) / 100).toFixed(2)}`;
-}
+const STATUS_DOT: Record<OrderStatus, string> = {
+  paid: "bg-emerald-400",
+  pending: "bg-yellow-400 animate-pulse",
+  unpaid: "bg-zinc-500",
+  failed: "bg-red-500",
+};
 
-/* ───────────────────────────────────────────── */
-
-function OrderCard({
-  order,
-  lang,
-}: {
-  order: SavedOrder;
-  lang: "en" | "ru";
-}) {
+function OrderCard({ order, lang }: { order: SavedOrder; lang: "en" | "ru" }) {
+  const [expanded, setExpanded] = useState(false);
   const status = resolveStatus(order);
 
+  const date = new Date(order.createdAt);
+
+  const total = ((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2);
+  const shipping = ((order.shippingPrice ?? 0) / 100).toFixed(2);
+
   return (
-    <div className="border-b border-white/5 py-6 text-[13px]">
-      {/* HEADER */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+    <div className="border-b border-white/5 text-[12px]">
+      <div
+        className="py-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 cursor-pointer"
+        onClick={() => setExpanded(p => !p)}
+      >
+        {/* LEFT */}
+        <div className="flex flex-wrap gap-6 items-start">
 
-        {/* CUSTOMER */}
-        <div>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">
-            {L(lang, "Customer", "Клиент")}
-          </p>
-          <p className="text-white font-medium">
-            {order.customerName || "—"}
-          </p>
-          <p className="text-zinc-500 text-[12px]">
-            {order.customerEmail || "—"}
-          </p>
+          <div>
+            <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Order</p>
+            <p className="font-mono text-white">{order.id}</p>
+          </div>
+
+          <div>
+            <span className={`px-2 py-1 text-[10px] font-mono ${STATUS_STYLE[status]}`}>
+              <span className={`inline-block w-2 h-2 mr-2 ${STATUS_DOT[status]}`} />
+              {STATUS_LABEL[status].en}
+            </span>
+          </div>
+
+          <div>
+            <p className="text-[9px] text-zinc-600 uppercase">Customer</p>
+            <p className="text-white">{order.customerName || "—"}</p>
+            <p className="text-zinc-500 text-[11px]">{order.customerEmail || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-[9px] text-zinc-600 uppercase">Location</p>
+            <p className="text-zinc-300">
+              {order.city || "—"}, {order.country || "—"}
+            </p>
+          </div>
+
         </div>
 
-        {/* LOCATION */}
-        <div>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">
-            {L(lang, "Location", "Локация")}
-          </p>
-          <p className="text-white">
-            {order.city || "—"}
-          </p>
-          <p className="text-zinc-500 text-[12px]">
-            {order.country || "—"}
-          </p>
-        </div>
-
-        {/* DELIVERY */}
-        <div>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">
-            {L(lang, "Delivery", "Доставка")}
-          </p>
-          <p className="text-white">
-            {order.deliveryMethod === "pickup"
-              ? "Packeta Pickup"
-              : "Home Delivery"}
-          </p>
-        </div>
-
-        {/* STATUS + TOTAL */}
-        <div className="flex justify-between md:justify-end md:flex-col gap-2">
-          <span
-            className={`px-2 py-1 text-[10px] border rounded-md w-fit ${STATUS[status].class}`}
-          >
-            {STATUS[status].label[lang]}
-          </span>
-
-          <p className="text-white text-[16px] font-semibold">
-            {money(order.grandTotal)}
-          </p>
+        {/* RIGHT */}
+        <div className="text-right">
+          <p className="text-[9px] text-zinc-600 uppercase">Total</p>
+          <p className="text-xl font-light text-white">€{total}</p>
         </div>
       </div>
 
-      {/* PICKUP / ADDRESS */}
-      <div className="mt-4 text-zinc-500 text-[12px]">
-        {order.deliveryMethod === "pickup" ? (
-          <>
-            <p>{order.pickupPointName || "—"}</p>
-            <p>{order.pickupPointAddress || "—"}</p>
-          </>
-        ) : (
-          <p>{order.address || "—"}</p>
-        )}
-      </div>
+      {/* EXPANDED */}
+      {expanded && (
+        <div className="pb-6 pt-4 grid md:grid-cols-3 gap-6 text-[11px] text-zinc-300">
+
+          <div>
+            <p className="text-zinc-600 uppercase text-[9px] mb-2">Customer Info</p>
+            <p>Name: {order.customerName || "—"}</p>
+            <p>Email: {order.customerEmail || "—"}</p>
+            <p>Phone: {order.customerPhone || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-zinc-600 uppercase text-[9px] mb-2">Delivery</p>
+            <p>{order.deliveryMethod}</p>
+            <p>{order.address || order.pickupPointAddress || "—"}</p>
+            <p>{order.city}, {order.country}</p>
+          </div>
+
+          <div>
+            <p className="text-zinc-600 uppercase text-[9px] mb-2">Payment</p>
+            <p>Subtotal: €{total}</p>
+            <p>Shipping: €{shipping}</p>
+            <p className="text-white mt-2">Date: {date.toLocaleString()}</p>
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
-
-/* ───────────────────────────────────────────── */
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<SavedOrder[]>([]);
   const [status, setStatus] = useState<StoreStatus | null>(null);
+  const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [lang] = useAdminLang();
 
   useEffect(() => {
-    fetch("/api/products").then(r => r.json()).then(setProducts).catch(() => {});
-    fetch("/api/store-status").then(r => r.json()).then(setStatus).catch(() => {});
-    fetch("/api/orders").then(r => r.json()).then(setOrders).catch(() => {});
+    fetch("/api/products").then(r => r.json()).then(setProducts);
+    fetch("/api/orders").then(r => r.json()).then(setOrders);
+    fetch("/api/store-status").then(r => r.json()).then(setStatus);
   }, []);
 
-  return (
-    <div className="pt-10 text-[14px]">
+  const filtered =
+    filter === "all"
+      ? orders
+      : orders.filter(o => resolveStatus(o) === filter);
 
-      {/* TITLE */}
-      <h1 className="text-4xl font-light mb-10">
-        {L(lang, "Dashboard", "Дашборд")}
-      </h1>
+  return (
+    <div className="pt-12 text-[13px]">
+      <h1 className="text-4xl font-light mb-10">Dashboard</h1>
 
       {/* ORDERS */}
-      <div>
-        <p className="text-[11px] text-zinc-500 uppercase mb-4">
-          {L(lang, "Recent Orders", "Последние заказы")}
-        </p>
+      <div className="mb-6 flex gap-3">
+        {(["all", "paid", "pending", "unpaid", "failed"] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1 border text-[11px] ${
+              filter === f ? "bg-white text-black" : "text-white border-white/20"
+            }`}
+          >
+            {f.toUpperCase()}
+          </button>
+        ))}
+      </div>
 
-        <div className="border-t border-white/10">
-          {orders.length === 0 ? (
-            <p className="text-zinc-600 py-6">No orders yet</p>
-          ) : (
-            orders.map(order => (
-              <OrderCard key={order.id} order={order} lang={lang} />
-            ))
-          )}
-        </div>
+      <div className="border-t border-white/10">
+        {filtered.map(o => (
+          <OrderCard key={o.id} order={o} lang={lang} />
+        ))}
       </div>
 
       {/* ACTIONS */}
-      <div className="mt-10 flex gap-3 flex-wrap">
-        <Link className="px-4 py-2 border text-sm" href="/admin/products/new">
-          + New Product
+      <div className="mt-10 flex gap-3 text-[11px]">
+        <Link href="/admin/products" className="border px-3 py-2">
+          Products
         </Link>
-        <Link className="px-4 py-2 border text-sm" href="/admin/products">
-          All Products
-        </Link>
-        <Link className="px-4 py-2 border text-sm" href="/shop">
-          View Shop
+        <Link href="/shop" className="border px-3 py-2">
+          Shop
         </Link>
       </div>
     </div>
