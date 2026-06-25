@@ -49,6 +49,16 @@ const channels = [
     label: "Email", en: "For formal inquiries", ru: "Для официальных запросов",
     value: "contact@redistrict.studio", href: "mailto:contact@redistrict.studio", primary: false,
   },
+  {
+    Icon: () => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <path d="M4 6.5h16v11H4z" />
+        <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    label: "RE:DISTRICT Support", en: "Support", ru: "Поддержка",
+    value: "RE.DISTRICT@outlook.com", href: "mailto:RE.DISTRICT@outlook.com", primary: false,
+  },
 ];
 
 export default function ContactPage() {
