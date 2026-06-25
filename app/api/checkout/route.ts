@@ -5,20 +5,18 @@ import { SHIPPING_OPTIONS } from "@/lib/shipping";
 import { saveOrder } from "@/lib/store";
 import { sendOrderEmails } from "@/lib/email";
 
+const BASE = "https://redistrict.watch";
+
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY not set");
 
-  return new Stripe(key, {
-    apiVersion: "2024-06-20",
-  });
+  return new Stripe(key);
 }
-
-// HARD FIX — no env ambiguity
-const BASE = "https://redistrict.watch";
 
 function parseDays(days: string): Stripe.ShippingRateCreateParams.DeliveryEstimate {
   const match = days.match(/(\d+)[–-](\d+)/);
+
   if (match) {
     return {
       minimum: { unit: "business_day", value: parseInt(match[1]) },
@@ -52,6 +50,7 @@ function toStripeShippingOption(opt: typeof SHIPPING_OPTIONS[number]): Stripe.Ch
 }
 
 type StripeCountry = Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry;
+
 const ALLOWED_COUNTRIES: StripeCountry[] = ["SK", "CZ", "PL", "DE", "AT", "HU"];
 
 export async function POST(req: NextRequest) {
@@ -65,6 +64,7 @@ export async function POST(req: NextRequest) {
     }
 
     const shipping = SHIPPING_OPTIONS.find(opt => opt.id === orderData.shippingId);
+
     if (!shipping) {
       return NextResponse.json({ error: "Invalid delivery method" }, { status: 400 });
     }
@@ -78,6 +78,8 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
+
+    const itemTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(item => ({
       quantity: item.quantity,
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items,
+
       shipping_options: [toStripeShippingOption(shipping)],
 
       ...(shipping.deliveryMethod === "home"
@@ -132,18 +135,23 @@ export async function POST(req: NextRequest) {
       stripeSessionId: session.id,
       status: "checkout_created",
       createdAt: new Date().toISOString(),
+
       items,
-      total: items.reduce((s, i) => s + i.price * i.quantity, 0),
+      total: itemTotal,
       shippingPrice: shipping.price,
-      grandTotal: items.reduce((s, i) => s + i.price * i.quantity, 0) + shipping.price,
+      grandTotal: itemTotal + shipping.price,
+
       customerName: orderData.name ?? "",
       customerEmail: orderData.email ?? "",
       customerPhone: orderData.phone ?? "",
+
       country: orderData.country ?? shipping.country,
       city: orderData.city ?? "",
       address: orderData.address ?? "",
+
       shippingId: shipping.id,
       deliveryMethod: shipping.deliveryMethod,
+
       pickupPointId: orderData.pickupPointId,
       pickupPointName: orderData.pickupPointName,
       pickupPointAddress: orderData.pickupPointAddress,
@@ -152,13 +160,14 @@ export async function POST(req: NextRequest) {
     await saveOrder(order);
 
     sendOrderEmails(order).catch(err =>
-      console.error("[checkout] Email error:", err)
+      console.error("[checkout] Email send error:", err)
     );
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Checkout error";
     console.error("[checkout]", message);
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
