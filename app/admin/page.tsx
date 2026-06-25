@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Product, SavedOrder } from "@/lib/types";
@@ -14,178 +15,193 @@ interface StoreStatus {
   message: string;
 }
 
-/**
- * Нормализованный статус заказа (единая логика)
- */
-type OrderStatus = "paid" | "pending" | "unpaid" | "failed";
+/* ─────────────────────────────────────────────
+   ORDER STATUS FIX (REAL BACKEND MATCH)
+───────────────────────────────────────────── */
 
-function resolveStatus(order: SavedOrder): OrderStatus {
-  if (order.status === "paid") return "paid";
+type UIOrderStatus = "paid" | "pending" | "failed" | "unpaid";
 
-  if (order.status === "failed" || order.status === "cancelled") {
-    return "failed";
+function resolveStatus(order: SavedOrder): UIOrderStatus {
+  switch (order.status) {
+    case "paid":
+      return "paid";
+
+    case "checkout_created":
+      return "pending";
+
+    case "cancelled":
+      return "failed";
+
+    default:
+      return "unpaid";
   }
-
-  // checkout_created = создан, но не оплачен
-  if (order.status === "checkout_created") return "pending";
-
-  return "unpaid";
 }
 
-const STATUS_LABEL: Record<OrderStatus, { en: string; ru: string }> = {
-  paid: { en: "PAID", ru: "ОПЛАЧЕН" },
-  pending: { en: "PENDING", ru: "ОЖИДАЕТ ОПЛАТЫ" },
-  unpaid: { en: "UNPAID", ru: "БЕЗ ОПЛАТЫ" },
-  failed: { en: "FAILED", ru: "ОТМЕНЁН" },
-};
-
-const STATUS_STYLE: Record<OrderStatus, string> = {
-  paid: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/60",
-  pending: "bg-yellow-950/60 text-yellow-400 border border-yellow-800/60",
-  unpaid: "bg-zinc-900 text-zinc-400 border border-zinc-800",
-  failed: "bg-red-950/60 text-red-500 border border-red-800/60",
-};
-
-const STATUS_DOT: Record<OrderStatus, string> = {
-  paid: "bg-emerald-400",
-  pending: "bg-yellow-400 animate-pulse",
-  unpaid: "bg-zinc-500",
-  failed: "bg-red-500",
-};
-
-function OrderCard({ order, lang }: { order: SavedOrder; lang: "en" | "ru" }) {
-  const [expanded, setExpanded] = useState(false);
-  const status = resolveStatus(order);
-
-  const date = new Date(order.createdAt);
-
-  const total = ((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2);
-  const shipping = ((order.shippingPrice ?? 0) / 100).toFixed(2);
-
-  return (
-    <div className="border-b border-white/5 text-[12px]">
-      <div
-        className="py-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 cursor-pointer"
-        onClick={() => setExpanded(p => !p)}
-      >
-        {/* LEFT */}
-        <div className="flex flex-wrap gap-6 items-start">
-
-          <div>
-            <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Order</p>
-            <p className="font-mono text-white">{order.id}</p>
-          </div>
-
-          <div>
-            <span className={`px-2 py-1 text-[10px] font-mono ${STATUS_STYLE[status]}`}>
-              <span className={`inline-block w-2 h-2 mr-2 ${STATUS_DOT[status]}`} />
-              {STATUS_LABEL[status].en}
-            </span>
-          </div>
-
-          <div>
-            <p className="text-[9px] text-zinc-600 uppercase">Customer</p>
-            <p className="text-white">{order.customerName || "—"}</p>
-            <p className="text-zinc-500 text-[11px]">{order.customerEmail || "—"}</p>
-          </div>
-
-          <div>
-            <p className="text-[9px] text-zinc-600 uppercase">Location</p>
-            <p className="text-zinc-300">
-              {order.city || "—"}, {order.country || "—"}
-            </p>
-          </div>
-
-        </div>
-
-        {/* RIGHT */}
-        <div className="text-right">
-          <p className="text-[9px] text-zinc-600 uppercase">Total</p>
-          <p className="text-xl font-light text-white">€{total}</p>
-        </div>
-      </div>
-
-      {/* EXPANDED */}
-      {expanded && (
-        <div className="pb-6 pt-4 grid md:grid-cols-3 gap-6 text-[11px] text-zinc-300">
-
-          <div>
-            <p className="text-zinc-600 uppercase text-[9px] mb-2">Customer Info</p>
-            <p>Name: {order.customerName || "—"}</p>
-            <p>Email: {order.customerEmail || "—"}</p>
-            <p>Phone: {order.customerPhone || "—"}</p>
-          </div>
-
-          <div>
-            <p className="text-zinc-600 uppercase text-[9px] mb-2">Delivery</p>
-            <p>{order.deliveryMethod}</p>
-            <p>{order.address || order.pickupPointAddress || "—"}</p>
-            <p>{order.city}, {order.country}</p>
-          </div>
-
-          <div>
-            <p className="text-zinc-600 uppercase text-[9px] mb-2">Payment</p>
-            <p>Subtotal: €{total}</p>
-            <p>Shipping: €{shipping}</p>
-            <p className="text-white mt-2">Date: {date.toLocaleString()}</p>
-          </div>
-
-        </div>
-      )}
-    </div>
-  );
-}
+/* ───────────────────────────────────────────── */
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<SavedOrder[]>([]);
   const [status, setStatus] = useState<StoreStatus | null>(null);
-  const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [lang] = useAdminLang();
 
   useEffect(() => {
-    fetch("/api/products").then(r => r.json()).then(setProducts);
-    fetch("/api/orders").then(r => r.json()).then(setOrders);
-    fetch("/api/store-status").then(r => r.json()).then(setStatus);
+    fetch("/api/products", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => setProducts(Array.isArray(d) ? d : []))
+      .catch(() => {});
+
+    fetch("/api/store-status", { cache: "no-store" })
+      .then(r => r.json())
+      .then(setStatus)
+      .catch(() => {});
+
+    fetch("/api/orders", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => setOrders(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
-  const filtered =
-    filter === "all"
-      ? orders
-      : orders.filter(o => resolveStatus(o) === filter);
+  const stats = {
+    total: products.length,
+    active: products.filter(p => p.status === "available" || p.status === "limited").length,
+    sold: products.filter(p => p.status === "sold").length,
+    featured: products.filter(p => p.featured).length,
+  };
 
   return (
-    <div className="pt-12 text-[13px]">
-      <h1 className="text-4xl font-light mb-10">Dashboard</h1>
+    <div className="pt-12 text-[14px]">
+      {/* HEADER */}
+      <p className="text-[10px] tracking-[0.4em] uppercase text-zinc-600 mb-2">
+        {L(lang, "Overview", "Обзор")}
+      </p>
 
-      {/* ORDERS */}
-      <div className="mb-6 flex gap-3">
-        {(["all", "paid", "pending", "unpaid", "failed"] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1 border text-[11px] ${
-              filter === f ? "bg-white text-black" : "text-white border-white/20"
-            }`}
-          >
-            {f.toUpperCase()}
-          </button>
+      <h1 className="text-4xl font-light mb-10">
+        {L(lang, "Dashboard", "Дашборд")}
+      </h1>
+
+      {/* STATUS */}
+      {status && (
+        <div className="mb-8 border border-white/10 bg-white/[0.02] px-5 py-4">
+          <p className="text-[11px] text-zinc-400">
+            {status.backend} — {status.message}
+          </p>
+        </div>
+      )}
+
+      {/* STATS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/5 mb-10">
+        {[
+          { l: { en: "Total", ru: "Всего" }, v: stats.total },
+          { l: { en: "Active", ru: "Активных" }, v: stats.active },
+          { l: { en: "Sold", ru: "Продано" }, v: stats.sold },
+          { l: { en: "Featured", ru: "На главной" }, v: stats.featured },
+        ].map(s => (
+          <div key={s.l.en} className="bg-black p-6">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-600">
+              {L(lang, s.l.en, s.l.ru)}
+            </p>
+            <p className="text-5xl font-light mt-3">{s.v}</p>
+          </div>
         ))}
       </div>
 
-      <div className="border-t border-white/10">
-        {filtered.map(o => (
-          <OrderCard key={o.id} order={o} lang={lang} />
-        ))}
+      {/* ORDERS */}
+      <div className="mb-12">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 mb-5">
+          {L(lang, "Recent Orders", "Последние заказы")}
+        </p>
+
+        <div className="border-t border-white/10">
+          {orders.length === 0 ? (
+            <p className="text-zinc-600 py-6">
+              {L(lang, "No orders yet", "Заказов пока нет")}
+            </p>
+          ) : (
+            orders.slice(0, 10).map(order => {
+              const status = resolveStatus(order);
+
+              return (
+                <div
+                  key={order.id}
+                  className="border-b border-white/5 py-6 grid md:grid-cols-6 gap-4 text-[14px]"
+                >
+                  {/* CUSTOMER */}
+                  <div className="md:col-span-2">
+                    <p className="text-white text-[16px] font-medium">
+                      {order.customerName || "Unknown"}
+                    </p>
+                    <p className="text-zinc-500 text-[13px]">
+                      {order.customerEmail}
+                    </p>
+                    <p className="text-zinc-600 text-[12px] mt-1">
+                      {order.country || "—"} · {order.city || "—"}
+                    </p>
+                  </div>
+
+                  {/* STATUS */}
+                  <div>
+                    <p className="text-zinc-600 text-[11px] uppercase tracking-[0.2em]">
+                      Status
+                    </p>
+                    <p
+                      className={`mt-1 text-[13px] ${
+                        status === "paid"
+                          ? "text-green-400"
+                          : status === "pending"
+                          ? "text-yellow-400"
+                          : status === "failed"
+                          ? "text-red-400"
+                          : "text-zinc-500"
+                      }`}
+                    >
+                      {status.toUpperCase()}
+                    </p>
+                  </div>
+
+                  {/* DELIVERY */}
+                  <div>
+                    <p className="text-zinc-600 text-[11px] uppercase">
+                      Delivery
+                    </p>
+                    <p className="text-zinc-300 text-[13px]">
+                      {order.deliveryMethod}
+                    </p>
+                  </div>
+
+                  {/* TOTAL */}
+                  <div>
+                    <p className="text-zinc-600 text-[11px] uppercase">
+                      Total
+                    </p>
+                    <p className="text-white text-[16px] font-light">
+                      €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
+                    </p>
+                  </div>
+
+                  {/* DATE */}
+                  <div>
+                    <p className="text-zinc-600 text-[11px] uppercase">
+                      Date
+                    </p>
+                    <p className="text-zinc-400 text-[13px]">
+                      {new Date(order.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* ACTIONS */}
-      <div className="mt-10 flex gap-3 text-[11px]">
-        <Link href="/admin/products" className="border px-3 py-2">
-          Products
+      <div className="flex gap-3 flex-wrap">
+        <Link href="/admin/products" className="text-zinc-400 hover:text-white">
+          All Products
         </Link>
-        <Link href="/shop" className="border px-3 py-2">
-          Shop
+        <Link href="/shop" className="text-zinc-400 hover:text-white">
+          View Shop
         </Link>
       </div>
     </div>
