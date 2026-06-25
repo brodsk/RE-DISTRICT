@@ -7,11 +7,15 @@ import { sendOrderEmails } from "@/lib/email";
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("STRIPE_SECRET_KEY not set - add it to Vercel environment variables");
-  return new Stripe(key);
+  if (!key) throw new Error("STRIPE_SECRET_KEY not set");
+
+  return new Stripe(key, {
+    apiVersion: "2024-06-20",
+  });
 }
 
-const BASE = process.env.NEXT_PUBLIC_URL ?? "https://redistrict.watch";
+// HARD FIX — no env ambiguity
+const BASE = "https://redistrict.watch";
 
 function parseDays(days: string): Stripe.ShippingRateCreateParams.DeliveryEstimate {
   const match = days.match(/(\d+)[–-](\d+)/);
@@ -21,14 +25,21 @@ function parseDays(days: string): Stripe.ShippingRateCreateParams.DeliveryEstima
       maximum: { unit: "business_day", value: parseInt(match[2]) },
     };
   }
-  return { minimum: { unit: "business_day", value: 3 }, maximum: { unit: "business_day", value: 7 } };
+
+  return {
+    minimum: { unit: "business_day", value: 3 },
+    maximum: { unit: "business_day", value: 7 },
+  };
 }
 
 function toStripeShippingOption(opt: typeof SHIPPING_OPTIONS[number]): Stripe.Checkout.SessionCreateParams.ShippingOption {
   return {
     shipping_rate_data: {
-      type: "fixed_amount" as const,
-      fixed_amount: { amount: Math.round(opt.price * 100), currency: "eur" },
+      type: "fixed_amount",
+      fixed_amount: {
+        amount: Math.round(opt.price * 100),
+        currency: "eur",
+      },
       display_name: opt.label,
       delivery_estimate: parseDays(opt.days),
       metadata: {
@@ -67,7 +78,6 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const itemTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(item => ({
       quantity: item.quantity,
@@ -85,19 +95,23 @@ export async function POST(req: NextRequest) {
       mode: "payment",
       line_items,
       shipping_options: [toStripeShippingOption(shipping)],
+
       ...(shipping.deliveryMethod === "home"
         ? { shipping_address_collection: { allowed_countries: ALLOWED_COUNTRIES } }
         : {}),
+
       phone_number_collection: { enabled: true },
+
       ...(orderData.email ? { customer_email: orderData.email } : {}),
+
       success_url: `${BASE}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${BASE}/checkout/cancel`,
       locale: "auto",
+
       metadata: {
         source: "redistrict-web",
         customer_name: orderData.name ?? "",
         customer_phone: orderData.phone ?? "",
-        origin: "Trencin, Slovakia",
         shippingId: shipping.id,
         deliveryMethod: shipping.deliveryMethod,
         country: orderData.country ?? shipping.country,
@@ -107,12 +121,11 @@ export async function POST(req: NextRequest) {
         pickupPointName: orderData.pickupPointName ?? "",
         pickupPointAddress: orderData.pickupPointAddress ?? "",
       },
-      custom_text: {
-        submit: {
-          message: "Ships via Packeta from Trencin, Slovakia.",
-        },
-      },
     });
+
+    if (!session.url) {
+      throw new Error("Stripe session URL missing");
+    }
 
     const order: SavedOrder = {
       id: `rd-order-${Date.now()}`,
@@ -120,9 +133,9 @@ export async function POST(req: NextRequest) {
       status: "checkout_created",
       createdAt: new Date().toISOString(),
       items,
-      total: itemTotal,
+      total: items.reduce((s, i) => s + i.price * i.quantity, 0),
       shippingPrice: shipping.price,
-      grandTotal: itemTotal + shipping.price,
+      grandTotal: items.reduce((s, i) => s + i.price * i.quantity, 0) + shipping.price,
       customerName: orderData.name ?? "",
       customerEmail: orderData.email ?? "",
       customerPhone: orderData.phone ?? "",
@@ -135,12 +148,11 @@ export async function POST(req: NextRequest) {
       pickupPointName: orderData.pickupPointName,
       pickupPointAddress: orderData.pickupPointAddress,
     };
+
     await saveOrder(order);
 
-    // Send customer confirmation + admin notification
-    // Non-blocking: email failures don't affect the checkout redirect
     sendOrderEmails(order).catch(err =>
-      console.error("[checkout] Email send error:", err)
+      console.error("[checkout] Email error:", err)
     );
 
     return NextResponse.json({ url: session.url });
