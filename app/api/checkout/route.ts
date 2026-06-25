@@ -11,7 +11,7 @@ function getStripe() {
   return new Stripe(key);
 }
 
-const BASE = process.env.NEXT_PUBLIC_URL ?? "https://re-district.vercel.app";
+const BASE = process.env.NEXT_PUBLIC_URL ?? "https://redistrict.watch";
 
 function parseDays(days: string): Stripe.ShippingRateCreateParams.DeliveryEstimate {
   const match = days.match(/(\d+)[–-](\d+)/);
