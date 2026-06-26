@@ -18,9 +18,6 @@ type OrderStatus =
   | "cancelled"
   | "refunded";
 
-/**
- * нормализация статуса из backend
- */
 function resolveStatus(order: SavedOrder): OrderStatus {
   switch (order.status) {
     case "paid":
@@ -41,7 +38,7 @@ function resolveStatus(order: SavedOrder): OrderStatus {
 
 /* ─────────────────────────────
    STATUS UI
-──────────────────────────────────────────── */
+──────────────────────────── */
 
 const STATUS: Record<OrderStatus, { label: string; className: string }> = {
   unpaid: { label: "UNPAID", className: "text-orange-400" },
@@ -55,19 +52,17 @@ const STATUS: Record<OrderStatus, { label: string; className: string }> = {
 };
 
 /* ─────────────────────────────
-   PRICE FIX (ВАЖНО)
-   backend хранит В ЦЕНТАХ
-──────────────────────────────────────────── */
+   PRICE FIX (SAFE)
+──────────────────────────── */
 
 function formatPrice(value: number) {
-  // защита от двойного деления
   const normalized = value > 1000 ? value / 100 : value;
   return `€${normalized.toFixed(2)}`;
 }
 
 /* ─────────────────────────────
-   MAIN ADMIN
-──────────────────────────────────────────── */
+   MAIN
+──────────────────────────── */
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<SavedOrder[]>([]);
@@ -77,18 +72,12 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
 
-  /* ─────────────────────────────
-     LOAD DATA
-  ───────────────────────────── */
-
   useEffect(() => {
     fetch("/api/orders").then(r => r.json()).then(setOrders);
     fetch("/api/products").then(r => r.json()).then(setProducts);
   }, []);
 
-  /* ─────────────────────────────
-     FILTER
-  ───────────────────────────── */
+  /* ───────────────────────────── */
 
   const filtered = useMemo(() => {
     return orders.filter(order => {
@@ -111,26 +100,28 @@ export default function AdminDashboard() {
   }, [orders, search, statusFilter]);
 
   /* ─────────────────────────────
-     UPDATE STATUS (FIX: PERSIST)
+     FIXED STATUS UPDATE (IMPORTANT)
   ───────────────────────────── */
 
   async function updateStatus(id: string, status: OrderStatus) {
-    // ❗ важно: сохраняем в backend
-    await fetch("/api/orders/update-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
-    });
+    try {
+      const res = await fetch("/api/orders/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
 
-    // UI sync
-    setOrders(prev =>
-      prev.map(o => (o.id === id ? { ...o, status } : o))
-    );
+      if (!res.ok) throw new Error("Failed to update status");
+
+      // обновляем ТОЛЬКО после успеха
+      setOrders(prev =>
+        prev.map(o => (o.id === id ? { ...o, status } : o))
+      );
+    } catch (err) {
+      console.error("Status update failed:", err);
+      alert("Status update failed (check API)");
+    }
   }
-
-  /* ─────────────────────────────
-     REFUND
-  ───────────────────────────── */
 
   async function refundOrder(id: string) {
     await fetch("/api/orders/refund", {
@@ -149,8 +140,7 @@ export default function AdminDashboard() {
   return (
     <div className="p-10 bg-black text-white min-h-screen font-mono text-[16px]">
 
-      {/* HEADER */}
-      <h1 className="text-4xl font-light mb-2">RE:DISTRICT ADMIN v2</h1>
+      <h1 className="text-4xl font-light mb-2">RE:DISTRICT ADMIN</h1>
       <p className="text-zinc-500 mb-6">Orders control panel</p>
 
       {/* CONTROLS */}
@@ -175,6 +165,7 @@ export default function AdminDashboard() {
             </option>
           ))}
         </select>
+
       </div>
 
       {/* ORDERS */}
@@ -195,7 +186,7 @@ export default function AdminDashboard() {
                   </p>
 
                   <p className="text-zinc-400 text-sm">
-                    {order.customerEmail || "no-email"} · {order.country} · {order.city}
+                    {order.customerEmail || "no-email"} · {order.country || "—"} · {order.city || "—"}
                   </p>
 
                   <p className="text-zinc-600 text-xs mt-1">
@@ -206,6 +197,7 @@ export default function AdminDashboard() {
                 <div className={STATUS[status].className}>
                   {STATUS[status].label}
                 </div>
+
               </div>
 
               {/* ITEMS */}
@@ -217,35 +209,32 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {/* TOTAL (FIXED PRICE) */}
+              {/* TOTAL (FIXED) */}
               <div className="mt-4 text-xl">
                 {formatPrice(order.grandTotal ?? order.total ?? 0)}
               </div>
 
-              {/* ACTIONS */}
-              <div className="flex gap-2 mt-4 flex-wrap">
+              {/* ACTIONS (RESTORED DROPDOWN STYLE) */}
+              <div className="mt-4">
 
-                <button onClick={() => updateStatus(order.id, "paid")} className="px-2 py-1 bg-emerald-900">
-                  Paid
-                </button>
+                <select
+                  className="bg-zinc-900 px-3 py-2"
+                  value={status}
+                  onChange={(e) =>
+                    updateStatus(order.id, e.target.value as OrderStatus)
+                  }
+                >
+                  {Object.keys(STATUS).map(s => (
+                    <option key={s} value={s}>
+                      {s.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
 
-                <button onClick={() => updateStatus(order.id, "packed")} className="px-2 py-1 bg-blue-900">
-                  Packed
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "shipped")} className="px-2 py-1 bg-cyan-900">
-                  Shipped
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "delivered")} className="px-2 py-1 bg-white text-black">
-                  Delivered
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "cancelled")} className="px-2 py-1 bg-red-900">
-                  Cancel
-                </button>
-
-                <button onClick={() => refundOrder(order.id)} className="px-2 py-1 bg-yellow-900">
+                <button
+                  onClick={() => refundOrder(order.id)}
+                  className="ml-3 px-3 py-2 bg-yellow-900"
+                >
                   Refund
                 </button>
 
