@@ -52,7 +52,7 @@ const STATUS: Record<OrderStatus, { label: string; className: string }> = {
 };
 
 /* ─────────────────────────────────────────────
-   MAIN ADMIN
+   ADMIN DASHBOARD
 ──────────────────────────────────────────── */
 
 export default function AdminDashboard() {
@@ -68,6 +68,8 @@ export default function AdminDashboard() {
     fetch("/api/products").then(r => r.json()).then(setProducts).catch(() => {});
   }, []);
 
+  /* ───────────────────────────────────────────── */
+
   const filtered = useMemo(() => {
     return orders.filter(order => {
       const status = resolveStatus(order);
@@ -77,6 +79,7 @@ export default function AdminDashboard() {
         ${order.customerEmail ?? ""}
         ${order.country ?? ""}
         ${order.city ?? ""}
+        ${order.address ?? ""}
         ${order.id}
       `.toLowerCase();
 
@@ -87,9 +90,12 @@ export default function AdminDashboard() {
     });
   }, [orders, search, statusFilter]);
 
+  /* ───────────────────────────────────────────── */
+
   return (
     <div className="p-10 bg-black text-white min-h-screen font-mono text-[16px]">
 
+      {/* HEADER */}
       <h1 className="text-4xl font-light mb-2">RE:DISTRICT ADMIN</h1>
       <p className="text-zinc-500 mb-6">Orders control panel</p>
 
@@ -135,11 +141,23 @@ export default function AdminDashboard() {
                     {order.customerName || "Unknown customer"}
                   </p>
 
+                  {/* EMAIL + LOCATION */}
                   <p className="text-zinc-400 text-sm">
                     {order.customerEmail || "no-email"} · {order.country || "—"} · {order.city || "—"}
                   </p>
+
+                  {/* ADDRESS */}
+                  <p className="text-zinc-600 text-xs mt-1">
+                    {order.address || "No address provided"}
+                  </p>
+
+                  {/* PHONE */}
+                  <p className="text-zinc-700 text-xs mt-1">
+                    {order.customerPhone || "No phone"}
+                  </p>
                 </div>
 
+                {/* STATUS */}
                 <div className={STATUS[status].className}>
                   {STATUS[status].label}
                 </div>
