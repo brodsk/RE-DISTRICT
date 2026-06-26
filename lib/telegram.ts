@@ -16,6 +16,9 @@ export async function sendTelegramNotification(order: any) {
     ? `📍 Packeta: ${order.pickupPointName || ''}\n${order.pickupPointAddress || ''}`
     : `📍 ${order.address || ''}`;
 
+  const grandTotal = order.grandTotal ?? (order.total + (order.shippingPrice || 0));
+  const shippingPrice = order.shippingPrice || 0;
+
   const message = `
 🛎️ <b>Новый заказ в RE:DISTRICT</b>
 
@@ -30,8 +33,8 @@ ${deliveryInfo}
 ────────────────
 ${itemsList}
 
-💰 <b>€${(order.grandTotal / 100).toFixed(2)}</b> 
-${order.shippingPrice > 0 ? `(доставка €${(order.shippingPrice/100).toFixed(2)})` : '(доставка бесплатно)'}
+💰 <b>€${grandTotal.toFixed(2)}</b> 
+${shippingPrice > 0 ? `(доставка €${shippingPrice.toFixed(2)})` : '(доставка бесплатно)'}
 
 🕒 ${new Date(order.createdAt).toLocaleString('ru-RU')}
   `.trim();
@@ -49,6 +52,8 @@ ${order.shippingPrice > 0 ? `(доставка €${(order.shippingPrice/100).to
 
     if (!res.ok) {
       console.error("Telegram error:", await res.text());
+    } else {
+      console.log("✅ Telegram notification sent");
     }
   } catch (err) {
     console.error("Failed to send Telegram notification:", err);
