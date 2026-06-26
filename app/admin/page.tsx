@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Product, SavedOrder } from "@/lib/types";
 
 /* ─────────────────────────────
-   STATUS MACHINE (SHOPIFY STYLE)
+   STATUS MACHINE
 ──────────────────────────── */
 
 type OrderStatus =
@@ -21,26 +21,24 @@ type OrderStatus =
 function normalizeStatus(order: SavedOrder): OrderStatus {
   switch (order.status as any) {
     case "paid":
-      return "paid";
+    case "processing":
     case "packed":
-      return "packed";
     case "shipped":
-      return "shipped";
     case "delivered":
-      return "delivered";
     case "cancelled":
-      return "cancelled";
     case "refunded":
-      return "refunded";
+      return order.status as OrderStatus;
+
     case "checkout_created":
       return "unpaid";
+
     default:
       return "unpaid";
   }
 }
 
 /* ─────────────────────────────
-   STATUS UI
+   UI STATUS
 ──────────────────────────── */
 
 const STATUS: Record<OrderStatus, { label: string; class: string }> = {
@@ -55,16 +53,7 @@ const STATUS: Record<OrderStatus, { label: string; class: string }> = {
   refunded: { label: "REFUNDED", class: "text-yellow-400" },
 };
 
-/* ─────────────────────────────
-   TYPES
-──────────────────────────── */
-
-type Activity = {
-  id: string;
-  orderId: string;
-  message: string;
-  time: number;
-};
+/* ───────────────────────────── */
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<SavedOrder[]>([]);
@@ -74,52 +63,36 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
 
-  const [activity, setActivity] = useState<Activity[]>([]);
-
   /* ───────────────────────────── */
 
   useEffect(() => {
-    fetch("/api/orders").then(r => r.json()).then(setOrders);
-    fetch("/api/products").then(r => r.json()).then(setProducts);
+    fetch("/api/orders")
+      .then(r => r.json())
+      .then(setOrders)
+      .catch(console.error);
+
+    fetch("/api/products")
+      .then(r => r.json())
+      .then(setProducts)
+      .catch(console.error);
   }, []);
 
   /* ─────────────────────────────
-     KPI CALC
-  ───────────────────────────── */
-
-  const kpi = useMemo(() => {
-    const totalRevenue = orders.reduce(
-      (acc, o) => acc + ((o.grandTotal ?? o.total ?? 0) / 100),
-      0
-    );
-
-    const unpaid = orders.filter(o => normalizeStatus(o) === "unpaid").length;
-    const paid = orders.filter(o => normalizeStatus(o) === "paid").length;
-
-    return {
-      revenue: totalRevenue,
-      orders: orders.length,
-      unpaid,
-      paid,
-    };
-  }, [orders]);
-
-  /* ─────────────────────────────
-     FILTERED ORDERS
-  ───────────────────────────── */
+     FILTER
+──────────────────────────── */
 
   const filtered = useMemo(() => {
-    return orders.filter(o => {
-      const status = normalizeStatus(o);
+    return orders.filter(order => {
+      const status = normalizeStatus(order);
 
       const text = `
-        ${o.customerName ?? ""}
-        ${o.customerEmail ?? ""}
-        ${o.country ?? ""}
-        ${o.city ?? ""}
-        ${o.address ?? ""}
-        ${o.id}
-        ${(o.items ?? []).map(i => i.name).join(" ")}
+        ${order.customerName ?? ""}
+        ${order.customerEmail ?? ""}
+        ${order.country ?? ""}
+        ${order.city ?? ""}
+        ${order.address ?? ""}
+        ${order.id}
+        ${(order.items ?? []).map(i => i.name).join(" ")}
       `.toLowerCase();
 
       const matchSearch = text.includes(search.toLowerCase());
@@ -130,34 +103,56 @@ export default function AdminDashboard() {
   }, [orders, search, statusFilter]);
 
   /* ─────────────────────────────
-     ACTIONS
+     UPDATE STATUS (FIXED API)
 ──────────────────────────── */
 
-  function addActivity(orderId: string, message: string) {
-    setActivity(prev => [
-      {
-        id: crypto.randomUUID(),
-        orderId,
-        message,
-        time: Date.now(),
-      },
-      ...prev,
-    ]);
-  }
-
   async function updateStatus(order: SavedOrder, newStatus: OrderStatus) {
-    await fetch("/api/orders/update-status", {
+    const res = await fetch("/api/orders", {
       method: "POST",
-      body: JSON.stringify({ id: order.id, status: newStatus }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update-status",
+        id: order.id,
+        status: newStatus,
+      }),
     });
+
+    if (!res.ok) {
+      alert("Status update failed");
+      return;
+    }
 
     setOrders(prev =>
       prev.map(o =>
         o.id === order.id ? { ...o, status: newStatus as any } : o
       )
     );
+  }
 
-    addActivity(order.id, `Status → ${newStatus}`);
+  /* ─────────────────────────────
+     REFUND (FIXED API)
+──────────────────────────── */
+
+  async function refundOrder(order: SavedOrder) {
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "refund",
+        id: order.id,
+      }),
+    });
+
+    if (!res.ok) {
+      alert("Refund failed");
+      return;
+    }
+
+    setOrders(prev =>
+      prev.map(o =>
+        o.id === order.id ? { ...o, status: "refunded" as any } : o
+      )
+    );
   }
 
   /* ─────────────────────────────
@@ -170,19 +165,11 @@ export default function AdminDashboard() {
       {/* LEFT */}
       <div className="flex-1 p-8">
 
-        {/* KPI */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          <KPI label="Revenue" value={`€${kpi.revenue.toFixed(2)}`} />
-          <KPI label="Orders" value={kpi.orders} />
-          <KPI label="Unpaid" value={kpi.unpaid} />
-          <KPI label="Paid" value={kpi.paid} />
-        </div>
-
         {/* SEARCH */}
         <div className="flex gap-3 mb-6">
           <input
             className="bg-zinc-900 px-3 py-2 w-full"
-            placeholder="Search orders, email, city, product..."
+            placeholder="Search orders..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -210,17 +197,27 @@ export default function AdminDashboard() {
               <div
                 key={order.id}
                 onClick={() => setSelected(order)}
-                className="border border-zinc-800 p-4 cursor-pointer hover:border-zinc-600"
+                className="border border-zinc-800 p-4 cursor-pointer"
               >
 
                 <div className="flex justify-between">
                   <div>
-                    <p className="text-xl">
-                      {order.customerName || "Unknown"}
-                    </p>
+                    <p className="text-xl">{order.customerName}</p>
 
+                    {/* EMAIL + LOCATION FIXED */}
                     <p className="text-zinc-500 text-sm">
                       {order.customerEmail} · {order.country} · {order.city}
+                    </p>
+
+                    {/* PACKETA LABEL (IMPORTANT FIX) */}
+                    {order.pickupPointName && (
+                      <p className="text-green-400 text-xs mt-1">
+                        📦 Packeta: {order.pickupPointName}
+                      </p>
+                    )}
+
+                    <p className="text-sm text-zinc-400 mt-2">
+                      {order.address}
                     </p>
                   </div>
 
@@ -229,47 +226,45 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <p className="mt-2 text-sm text-zinc-400">
-                  {order.address}
-                </p>
-
-                <p className="mt-2 text-lg">
+                {/* PRICE FIX (NO DOUBLE DIVISION) */}
+                <p className="mt-3 text-lg">
                   €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
                 </p>
+
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* RIGHT SIDEBAR */}
+      {/* RIGHT */}
       <div className="w-[420px] border-l border-zinc-800 p-5">
 
         {!selected ? (
           <p className="text-zinc-600">Select order</p>
         ) : (
           <>
-            <h2 className="text-2xl mb-2">{selected.customerName}</h2>
+            <h2 className="text-2xl">{selected.customerName}</h2>
 
-            <p className="text-zinc-400 text-sm mb-4">
+            <p className="text-zinc-400 text-sm">
               {selected.customerEmail}
             </p>
 
-            <p className="text-zinc-500 text-sm">
+            <p className="text-zinc-500 text-sm mt-2">
               {selected.address}
             </p>
 
-            <div className="mt-3 text-sm text-zinc-400">
+            <p className="text-zinc-500 text-sm">
               {selected.country} · {selected.city}
-            </div>
+            </p>
 
-            {/* PACKETA INFO */}
-            {(selected as any).pickupPointName && (
-              <div className="mt-4 border border-zinc-700 p-3">
-                <p className="text-green-400">Packeta Pickup</p>
-                <p>{(selected as any).pickupPointName}</p>
+            {/* PACKETA FIX (CLEAR INDICATOR) */}
+            {selected.pickupPointName && (
+              <div className="mt-4 border border-green-800 p-3">
+                <p className="text-green-400">📦 Packeta Pickup Point</p>
+                <p>{selected.pickupPointName}</p>
                 <p className="text-zinc-500 text-sm">
-                  {(selected as any).pickupPointAddress}
+                  {selected.pickupPointAddress}
                 </p>
               </div>
             )}
@@ -283,7 +278,7 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {/* TOTAL */}
+            {/* TOTAL FIX */}
             <p className="text-xl mt-4">
               €{((selected.grandTotal ?? selected.total ?? 0) / 100).toFixed(2)}
             </p>
@@ -302,7 +297,7 @@ export default function AdminDashboard() {
               ))}
 
               <button
-                onClick={() => updateStatus(selected, "refunded")}
+                onClick={() => refundOrder(selected)}
                 className="px-2 py-1 bg-yellow-900"
               >
                 Refund
@@ -315,33 +310,9 @@ export default function AdminDashboard() {
                 Cancel
               </button>
             </div>
-
-            {/* ACTIVITY LOG */}
-            <div className="mt-6">
-              <p className="text-zinc-400 mb-2">Activity</p>
-
-              {activity
-                .filter(a => a.orderId === selected.id)
-                .map(a => (
-                  <p key={a.id} className="text-xs text-zinc-500">
-                    {new Date(a.time).toLocaleTimeString()} · {a.message}
-                  </p>
-                ))}
-            </div>
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-/* ───────────────────────────── */
-
-function KPI({ label, value }: any) {
-  return (
-    <div className="bg-zinc-900 p-3">
-      <p className="text-zinc-500 text-xs">{label}</p>
-      <p className="text-xl">{value}</p>
     </div>
   );
 }
