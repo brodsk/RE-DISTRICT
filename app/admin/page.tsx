@@ -6,7 +6,7 @@ import { useAdminLang } from "@/app/admin/layout";
 import { createClient } from "@supabase/supabase-js";
 
 /* ─────────────────────────────────────────────
-   Supabase client
+   SUPABASE
 ──────────────────────────────────────────── */
 
 const supabase = createClient(
@@ -15,7 +15,7 @@ const supabase = createClient(
 );
 
 /* ─────────────────────────────────────────────
-   ORDER STATUS
+   TYPES
 ──────────────────────────────────────────── */
 
 type OrderStatus =
@@ -39,12 +39,12 @@ const ALL_STATUSES: OrderStatus[] = [
   "refunded",
 ];
 
-function resolveStatus(order: SavedOrder): OrderStatus {
+function resolveStatus(order: any): OrderStatus {
   return (order.status as OrderStatus) || "unpaid";
 }
 
 /* ─────────────────────────────────────────────
-   STATUS UI
+   UI STATUS MAP
 ──────────────────────────────────────────── */
 
 const STATUS: Record<OrderStatus, { label: string; className: string }> = {
@@ -63,15 +63,25 @@ const STATUS: Record<OrderStatus, { label: string; className: string }> = {
 ──────────────────────────────────────────── */
 
 export default function AdminDashboard() {
-  const [orders, setOrders] = useState<SavedOrder[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [lang] = useAdminLang();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [statusFilter, setStatusFilter] =
+    useState<OrderStatus | "all">("all");
   const [updating, setUpdating] = useState<string | null>(null);
 
   /* ─────────────────────────────────────────────
-     LOAD + REALTIME
+     NORMALIZE (CRITICAL FIX)
+  ───────────────────────────────────────────── */
+
+  const normalizeOrder = (o: any) => ({
+    ...o,
+    createdAt: o.createdAt ?? o.created_at,
+  });
+
+  /* ─────────────────────────────────────────────
+     LOAD
   ───────────────────────────────────────────── */
 
   const loadOrders = async () => {
@@ -85,7 +95,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    if (data) setOrders(data);
+    setOrders((data ?? []).map(normalizeOrder));
   };
 
   useEffect(() => {
@@ -101,9 +111,7 @@ export default function AdminDashboard() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => {
-          loadOrders();
-        }
+        () => loadOrders()
       )
       .subscribe();
 
@@ -118,16 +126,17 @@ export default function AdminDashboard() {
 
   const updateStatus = async (id: string, status: string) => {
     setUpdating(id);
+
     try {
       await supabase.from("orders").update({ status }).eq("id", id);
 
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === id ? { ...o, status: status as SavedOrder["status"] } : o
+          o.id === id ? { ...o, status } : o
         )
       );
     } catch (e) {
-      console.error("updateStatus failed:", e);
+      console.error(e);
     } finally {
       setUpdating(null);
     }
@@ -135,6 +144,7 @@ export default function AdminDashboard() {
 
   const refund = async (id: string) => {
     if (!confirm("Mark this order as REFUNDED?")) return;
+
     setUpdating(id);
 
     try {
@@ -149,7 +159,7 @@ export default function AdminDashboard() {
         )
       );
     } catch (e) {
-      console.error("refund failed:", e);
+      console.error(e);
     } finally {
       setUpdating(null);
     }
@@ -176,11 +186,10 @@ export default function AdminDashboard() {
         .join(" ")
         .toLowerCase();
 
-      const matchSearch = text.includes(search.toLowerCase());
-      const matchStatus =
-        statusFilter === "all" || status === statusFilter;
-
-      return matchSearch && matchStatus;
+      return (
+        text.includes(search.toLowerCase()) &&
+        (statusFilter === "all" || status === statusFilter)
+      );
     });
   }, [orders, search, statusFilter]);
 
@@ -190,8 +199,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-10 bg-black text-white min-h-screen font-mono text-[16px]">
-      {/* HEADER */}
-      <h1 className="text-4xl font-light mb-2">RE:DISTRICT ADMIN</h1>
+      <h1 className="text-4xl font-light mb-2">
+        RE:DISTRICT ADMIN
+      </h1>
       <p className="text-zinc-500 mb-6">
         Orders control panel • Realtime
       </p>
@@ -209,7 +219,7 @@ export default function AdminDashboard() {
           className="bg-zinc-900 px-3 py-2"
           value={statusFilter}
           onChange={(e) =>
-            setStatusFilter(e.target.value as OrderStatus | "all")
+            setStatusFilter(e.target.value as any)
           }
         >
           <option value="all">All</option>
@@ -221,7 +231,7 @@ export default function AdminDashboard() {
         </select>
 
         <button
-          className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm transition-colors"
+          className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2"
           onClick={loadOrders}
         >
           ↻ Refresh
@@ -240,55 +250,45 @@ export default function AdminDashboard() {
           const isPickup = order.deliveryMethod === "pickup";
 
           return (
-            <div key={order.id} className="border border-zinc-800 p-5">
-              {/* HEADER ROW */}
-              <div className="flex justify-between items-start gap-4">
+            <div
+              key={order.id}
+              className="border border-zinc-800 p-5"
+            >
+              {/* HEADER */}
+              <div className="flex justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-2xl truncate">
-                    {order.customerName || "Unknown customer"}
+                    {order.customerName || "Unknown"}
                   </p>
 
-                  <p className="text-zinc-400 text-sm mt-0.5">
-                    {order.customerEmail || "no-email"}
-                    {order.country ? ` · ${order.country}` : ""}
-                    {order.city ? ` · ${order.city}` : ""}
+                  <p className="text-zinc-400 text-sm">
+                    {order.customerEmail}
                   </p>
 
                   {isPickup ? (
-                    <div className="mt-2 border-l-2 border-zinc-700 pl-3">
-                      <p className="text-zinc-500 text-xs uppercase mb-1">
-                        📦 Packeta Pickup Point
-                      </p>
-                      {order.pickupPointName && (
-                        <p className="text-zinc-300 text-xs">
-                          {order.pickupPointName}
-                        </p>
-                      )}
-                      {order.pickupPointAddress && (
-                        <p className="text-zinc-600 text-xs">
-                          {order.pickupPointAddress}
-                        </p>
-                      )}
+                    <div className="mt-2 text-xs text-zinc-500">
+                      📦 {order.pickupPointName}
+                      <br />
+                      {order.pickupPointAddress}
                     </div>
                   ) : (
-                    <p className="text-zinc-600 text-xs mt-1">
-                      {order.address || "No address provided"}
+                    <p className="text-zinc-600 text-xs">
+                      {order.address}
                     </p>
                   )}
 
                   <p className="text-zinc-700 text-xs mt-1">
-                    {order.customerPhone || "No phone"}
-                  </p>
-
-                  <p className="text-zinc-800 text-xs mt-1">
                     {order.id} ·{" "}
-                    {new Date(order.createdAt).toLocaleString("sk-SK")}
+                    {order.createdAt
+                      ? new Date(
+                          order.createdAt
+                        ).toLocaleString("sk-SK")
+                      : "—"}
                   </p>
                 </div>
 
-                {/* STATUS */}
                 <div
-                  className={`${STATUS[status].className} text-right shrink-0`}
+                  className={`${STATUS[status].className} text-right`}
                 >
                   <div className="text-lg font-bold">
                     {STATUS[status].label}
@@ -297,8 +297,8 @@ export default function AdminDashboard() {
               </div>
 
               {/* ITEMS */}
-              <div className="mt-3 text-zinc-300 text-sm">
-                {(order.items ?? []).map((i, idx) => (
+              <div className="mt-3 text-sm text-zinc-300">
+                {(order.items ?? []).map((i: any, idx: number) => (
                   <div key={idx}>
                     • {i.name} × {i.quantity}
                   </div>
@@ -307,25 +307,20 @@ export default function AdminDashboard() {
 
               {/* TOTAL */}
               <div className="mt-4 text-xl">
-                €
-                {(order.grandTotal ?? order.total ?? 0).toFixed(2)}
-                {order.shippingPrice > 0 && (
-                  <span className="text-zinc-600 text-sm ml-2">
-                    (shipping €{order.shippingPrice.toFixed(2)})
-                  </span>
-                )}
+                €{(order.grandTotal ?? order.total ?? 0).toFixed(2)}
               </div>
 
               {/* ACTIONS */}
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex gap-2 flex-wrap">
                 {ALL_STATUSES.filter(
-                  (s) => s !== "checkout_created" && s !== status
+                  (s) =>
+                    s !== "checkout_created" && s !== status
                 ).map((s) => (
                   <button
                     key={s}
                     disabled={isUpdating}
                     onClick={() => updateStatus(order.id, s)}
-                    className="px-3 py-1 text-xs bg-zinc-900 border border-zinc-700 hover:border-zinc-400 disabled:opacity-40 transition-colors"
+                    className="px-3 py-1 text-xs bg-zinc-900 border border-zinc-700"
                   >
                     → {s.toUpperCase()}
                   </button>
@@ -335,7 +330,7 @@ export default function AdminDashboard() {
                   <button
                     disabled={isUpdating}
                     onClick={() => refund(order.id)}
-                    className="px-3 py-1 text-xs bg-zinc-900 border border-yellow-900 text-yellow-500 hover:border-yellow-400 disabled:opacity-40 transition-colors ml-auto"
+                    className="px-3 py-1 text-xs bg-zinc-900 border border-yellow-600 text-yellow-400 ml-auto"
                   >
                     REFUND
                   </button>
@@ -343,17 +338,13 @@ export default function AdminDashboard() {
               </div>
 
               {isUpdating && (
-                <p className="text-zinc-600 text-xs mt-2">
+                <p className="text-xs text-zinc-600 mt-2">
                   Saving…
                 </p>
               )}
             </div>
           );
         })}
-
-        {filtered.length === 0 && (
-          <p className="text-zinc-700 text-sm">No orders found.</p>
-        )}
       </div>
     </div>
   );
