@@ -285,7 +285,7 @@ export default function AdminDashboard() {
 
             {/* TOTAL */}
             <p className="text-xl mt-4">
-              €{((selected.grandTotal ?? selected.total ?? 0) / 100).toFixed(2)}
+              €{((selected.grandTotal ?? selected.total ?? 0) * 1).toFixed(2)}
             </p>
 
             {/* ACTIONS */}
