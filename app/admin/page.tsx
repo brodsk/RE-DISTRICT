@@ -2,315 +2,299 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Product, SavedOrder } from "@/lib/types";
+import { useAdminLang } from "@/app/admin/layout";
 
-/* ─────────────────────────────
-   STATUS MACHINE
-──────────────────────────── */
+/* ─────────────────────────────────────────────
+   ORDER STATUS
+──────────────────────────────────────────── */
 
 type OrderStatus =
   | "checkout_created"
   | "unpaid"
   | "paid"
-  | "processing"
   | "packed"
   | "shipped"
   | "delivered"
   | "cancelled"
   | "refunded";
 
-function normalizeStatus(order: SavedOrder): OrderStatus {
-  switch (order.status as any) {
+const ALL_STATUSES: OrderStatus[] = [
+  "checkout_created",
+  "unpaid",
+  "paid",
+  "packed",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "refunded",
+];
+
+function resolveStatus(order: SavedOrder): OrderStatus {
+  switch (order.status) {
     case "paid":
-    case "processing":
     case "packed":
     case "shipped":
     case "delivered":
     case "cancelled":
     case "refunded":
-      return order.status as OrderStatus;
-
     case "checkout_created":
-      return "unpaid";
-
+    case "unpaid":
+      return order.status;
     default:
       return "unpaid";
   }
 }
 
-/* ─────────────────────────────
-   UI STATUS
-──────────────────────────── */
+/* ─────────────────────────────────────────────
+   STATUS UI
+──────────────────────────────────────────── */
 
-const STATUS: Record<OrderStatus, { label: string; class: string }> = {
-  checkout_created: { label: "NEW", class: "text-zinc-500" },
-  unpaid: { label: "UNPAID", class: "text-orange-400" },
-  paid: { label: "PAID", class: "text-emerald-400" },
-  processing: { label: "PROCESSING", class: "text-blue-400" },
-  packed: { label: "PACKED", class: "text-indigo-400" },
-  shipped: { label: "SHIPPED", class: "text-cyan-400" },
-  delivered: { label: "DELIVERED", class: "text-white" },
-  cancelled: { label: "CANCELLED", class: "text-red-400" },
-  refunded: { label: "REFUNDED", class: "text-yellow-400" },
+const STATUS: Record<OrderStatus, { label: string; className: string }> = {
+  unpaid:           { label: "UNPAID",    className: "text-orange-400" },
+  paid:             { label: "PAID",      className: "text-emerald-400" },
+  packed:           { label: "PACKED",    className: "text-blue-400" },
+  shipped:          { label: "SHIPPED",   className: "text-cyan-400" },
+  delivered:        { label: "DELIVERED", className: "text-white" },
+  cancelled:        { label: "CANCELLED", className: "text-red-400" },
+  refunded:         { label: "REFUNDED",  className: "text-yellow-400" },
+  checkout_created: { label: "NEW",       className: "text-zinc-500" },
 };
 
-/* ───────────────────────────── */
+/* ─────────────────────────────────────────────
+   ADMIN DASHBOARD
+──────────────────────────────────────────── */
 
 export default function AdminDashboard() {
-  const [orders, setOrders] = useState<SavedOrder[]>([]);
+  const [orders, setOrders]     = useState<SavedOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selected, setSelected] = useState<SavedOrder | null>(null);
-
-  const [search, setSearch] = useState("");
+  const [lang]                  = useAdminLang();
+  const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [updating, setUpdating] = useState<string | null>(null);
 
-  /* ───────────────────────────── */
+  // ── Load data ──────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    fetch("/api/orders")
+  const reload = () => {
+    fetch("/api/orders", { cache: "no-store" })
       .then(r => r.json())
       .then(setOrders)
       .catch(console.error);
+  };
 
-    fetch("/api/products")
-      .then(r => r.json())
-      .then(setProducts)
-      .catch(console.error);
+  useEffect(() => {
+    reload();
+    fetch("/api/products").then(r => r.json()).then(setProducts).catch(() => {});
   }, []);
 
-  /* ─────────────────────────────
-     FILTER
-──────────────────────────── */
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  const updateStatus = async (id: string, status: string) => {
+    setUpdating(id);
+    try {
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update-status", id, status }),
+      });
+      // Optimistic update
+      setOrders(prev =>
+        prev.map(o => (o.id === id ? { ...o, status: status as SavedOrder["status"] } : o))
+      );
+    } catch (e) {
+      console.error("updateStatus failed:", e);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const refund = async (id: string) => {
+    if (!confirm("Mark this order as REFUNDED?")) return;
+    setUpdating(id);
+    try {
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refund", id }),
+      });
+      setOrders(prev =>
+        prev.map(o => (o.id === id ? { ...o, status: "refunded" } : o))
+      );
+    } catch (e) {
+      console.error("refund failed:", e);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  // ── Filter ─────────────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
     return orders.filter(order => {
-      const status = normalizeStatus(order);
-
-      const text = `
-        ${order.customerName ?? ""}
-        ${order.customerEmail ?? ""}
-        ${order.country ?? ""}
-        ${order.city ?? ""}
-        ${order.address ?? ""}
-        ${order.id}
-        ${(order.items ?? []).map(i => i.name).join(" ")}
-      `.toLowerCase();
+      const status = resolveStatus(order);
+      const text = [
+        order.customerName,
+        order.customerEmail,
+        order.country,
+        order.city,
+        order.address,
+        order.id,
+        order.pickupPointName,
+        order.pickupPointAddress,
+      ].join(" ").toLowerCase();
 
       const matchSearch = text.includes(search.toLowerCase());
       const matchStatus = statusFilter === "all" || status === statusFilter;
-
       return matchSearch && matchStatus;
     });
   }, [orders, search, statusFilter]);
 
-  /* ─────────────────────────────
-     UPDATE STATUS (FIXED API)
-──────────────────────────── */
-
-  async function updateStatus(order: SavedOrder, newStatus: OrderStatus) {
-    const res = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "update-status",
-        id: order.id,
-        status: newStatus,
-      }),
-    });
-
-    if (!res.ok) {
-      alert("Status update failed");
-      return;
-    }
-
-    setOrders(prev =>
-      prev.map(o =>
-        o.id === order.id ? { ...o, status: newStatus as any } : o
-      )
-    );
-  }
-
-  /* ─────────────────────────────
-     REFUND (FIXED API)
-──────────────────────────── */
-
-  async function refundOrder(order: SavedOrder) {
-    const res = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "refund",
-        id: order.id,
-      }),
-    });
-
-    if (!res.ok) {
-      alert("Refund failed");
-      return;
-    }
-
-    setOrders(prev =>
-      prev.map(o =>
-        o.id === order.id ? { ...o, status: "refunded" as any } : o
-      )
-    );
-  }
-
-  /* ─────────────────────────────
-     UI
-──────────────────────────── */
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex bg-black text-white min-h-screen font-mono">
+    <div className="p-10 bg-black text-white min-h-screen font-mono text-[16px]">
 
-      {/* LEFT */}
-      <div className="flex-1 p-8">
+      {/* HEADER */}
+      <h1 className="text-4xl font-light mb-2">RE:DISTRICT ADMIN</h1>
+      <p className="text-zinc-500 mb-6">Orders control panel</p>
 
-        {/* SEARCH */}
-        <div className="flex gap-3 mb-6">
-          <input
-            className="bg-zinc-900 px-3 py-2 w-full"
-            placeholder="Search orders..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+      {/* CONTROLS */}
+      <div className="flex gap-3 mb-6 flex-wrap items-center">
+        <input
+          className="bg-zinc-900 px-3 py-2"
+          placeholder="Search orders..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
 
-          <select
-            className="bg-zinc-900 px-3 py-2"
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as any)}
-          >
-            <option value="all">ALL</option>
-            {Object.keys(STATUS).map(s => (
-              <option key={s} value={s}>
-                {s.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          className="bg-zinc-900 px-3 py-2"
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value as OrderStatus | "all")}
+        >
+          <option value="all">All</option>
+          {ALL_STATUSES.map(s => (
+            <option key={s} value={s}>{s.toUpperCase()}</option>
+          ))}
+        </select>
 
-        {/* ORDERS */}
-        <div className="space-y-4">
-          {filtered.map(order => {
-            const status = normalizeStatus(order);
+        <button
+          className="bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm transition-colors"
+          onClick={reload}
+        >
+          ↻ Refresh
+        </button>
 
-            return (
-              <div
-                key={order.id}
-                onClick={() => setSelected(order)}
-                className="border border-zinc-800 p-4 cursor-pointer"
-              >
-
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-xl">{order.customerName}</p>
-
-                    {/* EMAIL + LOCATION FIXED */}
-                    <p className="text-zinc-500 text-sm">
-                      {order.customerEmail} · {order.country} · {order.city}
-                    </p>
-
-                    {/* PACKETA LABEL (IMPORTANT FIX) */}
-                    {order.pickupPointName && (
-                      <p className="text-green-400 text-xs mt-1">
-                        📦 Packeta: {order.pickupPointName}
-                      </p>
-                    )}
-
-                    <p className="text-sm text-zinc-400 mt-2">
-                      {order.address}
-                    </p>
-                  </div>
-
-                  <div className={STATUS[status].class}>
-                    {STATUS[status].label}
-                  </div>
-                </div>
-
-                {/* PRICE FIX (NO DOUBLE DIVISION) */}
-                <p className="mt-3 text-lg">
-                  €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
-                </p>
-
-              </div>
-            );
-          })}
-        </div>
+        <span className="text-zinc-600 text-sm">{filtered.length} orders</span>
       </div>
 
-      {/* RIGHT */}
-      <div className="w-[420px] border-l border-zinc-800 p-5">
+      {/* ORDERS */}
+      <div className="space-y-5">
+        {filtered.map(order => {
+          const status = resolveStatus(order);
+          const isUpdating = updating === order.id;
+          const isPickup = order.deliveryMethod === "pickup";
 
-        {!selected ? (
-          <p className="text-zinc-600">Select order</p>
-        ) : (
-          <>
-            <h2 className="text-2xl">{selected.customerName}</h2>
+          return (
+            <div key={order.id} className="border border-zinc-800 p-5">
 
-            <p className="text-zinc-400 text-sm">
-              {selected.customerEmail}
-            </p>
+              {/* HEADER ROW */}
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-2xl truncate">
+                    {order.customerName || "Unknown customer"}
+                  </p>
 
-            <p className="text-zinc-500 text-sm mt-2">
-              {selected.address}
-            </p>
+                  <p className="text-zinc-400 text-sm mt-0.5">
+                    {order.customerEmail || "no-email"}
+                    {order.country ? ` · ${order.country}` : ""}
+                    {order.city ? ` · ${order.city}` : ""}
+                  </p>
 
-            <p className="text-zinc-500 text-sm">
-              {selected.country} · {selected.city}
-            </p>
+                  {/* DELIVERY ADDRESS or PACKETA PICKUP */}
+                  {isPickup ? (
+                    <div className="mt-2 border-l-2 border-zinc-700 pl-3">
+                      <p className="text-zinc-500 text-xs tracking-widest uppercase mb-1">
+                        📦 Packeta Pickup Point
+                      </p>
+                      {order.pickupPointName && (
+                        <p className="text-zinc-300 text-xs">{order.pickupPointName}</p>
+                      )}
+                      {order.pickupPointAddress && (
+                        <p className="text-zinc-600 text-xs">{order.pickupPointAddress}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-600 text-xs mt-1">
+                      {order.address || "No address provided"}
+                    </p>
+                  )}
 
-            {/* PACKETA FIX (CLEAR INDICATOR) */}
-            {selected.pickupPointName && (
-              <div className="mt-4 border border-green-800 p-3">
-                <p className="text-green-400">📦 Packeta Pickup Point</p>
-                <p>{selected.pickupPointName}</p>
-                <p className="text-zinc-500 text-sm">
-                  {selected.pickupPointAddress}
-                </p>
+                  <p className="text-zinc-700 text-xs mt-1">
+                    {order.customerPhone || "No phone"}
+                  </p>
+
+                  <p className="text-zinc-800 text-xs mt-1">
+                    {order.id} · {new Date(order.createdAt).toLocaleString("sk-SK")}
+                  </p>
+                </div>
+
+                {/* STATUS BADGE */}
+                <div className={`${STATUS[status].className} text-right shrink-0`}>
+                  <div className="text-lg font-bold">{STATUS[status].label}</div>
+                </div>
               </div>
-            )}
 
-            {/* ITEMS */}
-            <div className="mt-4">
-              {(selected.items ?? []).map((i, idx) => (
-                <p key={idx} className="text-sm">
-                  • {i.name} × {i.quantity}
-                </p>
-              ))}
+              {/* ITEMS */}
+              <div className="mt-3 text-zinc-300 text-sm">
+                {(order.items ?? []).map((i, idx) => (
+                  <div key={idx}>• {i.name} × {i.quantity}</div>
+                ))}
+              </div>
+
+              {/* TOTAL — prices already divided by 100 in lib/orders.ts */}
+              <div className="mt-4 text-xl">
+                €{(order.grandTotal ?? order.total ?? 0).toFixed(2)}
+                {order.shippingPrice > 0 && (
+                  <span className="text-zinc-600 text-sm ml-2">
+                    (shipping €{order.shippingPrice.toFixed(2)})
+                  </span>
+                )}
+              </div>
+
+              {/* STATUS CONTROLS */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {ALL_STATUSES.filter(s => s !== "checkout_created" && s !== status).map(s => (
+                  <button
+                    key={s}
+                    disabled={isUpdating}
+                    onClick={() => updateStatus(order.id, s)}
+                    className="px-3 py-1 text-xs bg-zinc-900 border border-zinc-700 hover:border-zinc-400 disabled:opacity-40 transition-colors"
+                  >
+                    → {s.toUpperCase()}
+                  </button>
+                ))}
+
+                {status !== "refunded" && (
+                  <button
+                    disabled={isUpdating}
+                    onClick={() => refund(order.id)}
+                    className="px-3 py-1 text-xs bg-zinc-900 border border-yellow-900 text-yellow-500 hover:border-yellow-400 disabled:opacity-40 transition-colors ml-auto"
+                  >
+                    REFUND
+                  </button>
+                )}
+              </div>
+
+              {isUpdating && (
+                <p className="text-zinc-600 text-xs mt-2">Saving…</p>
+              )}
+
             </div>
+          );
+        })}
 
-            {/* TOTAL FIX */}
-            <p className="text-xl mt-4">
-              €{((selected.grandTotal ?? selected.total ?? 0) / 100).toFixed(2)}
-            </p>
-
-            {/* ACTIONS */}
-            <div className="mt-4 flex flex-wrap gap-2">
-
-              {(["paid","processing","packed","shipped","delivered"] as OrderStatus[]).map(s => (
-                <button
-                  key={s}
-                  onClick={() => updateStatus(selected, s)}
-                  className="px-2 py-1 bg-zinc-800"
-                >
-                  {s}
-                </button>
-              ))}
-
-              <button
-                onClick={() => refundOrder(selected)}
-                className="px-2 py-1 bg-yellow-900"
-              >
-                Refund
-              </button>
-
-              <button
-                onClick={() => updateStatus(selected, "cancelled")}
-                className="px-2 py-1 bg-red-900"
-              >
-                Cancel
-              </button>
-            </div>
-          </>
+        {filtered.length === 0 && (
+          <p className="text-zinc-700 text-sm">No orders found.</p>
         )}
       </div>
     </div>
