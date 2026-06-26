@@ -90,7 +90,42 @@ export interface OrderData {
 export interface SavedOrder {
   id:                  string;
   stripeSessionId:     string;
-  status:              "checkout_created" | "paid" | "cancelled";
+  export type OrderStatus =
+  | "checkout_created"
+  | "paid"
+  | "packed"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded";
+
+export interface SavedOrder {
+  id: string;
+  stripeSessionId: string;
+  status: OrderStatus;
+  createdAt: string;
+
+  items: any[];
+
+  total: number;
+  shippingPrice: number;
+  grandTotal: number;
+
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+
+  country: string;
+  city: string;
+  address: string;
+
+  shippingId: string;
+  deliveryMethod: string;
+
+  pickupPointId?: string;
+  pickupPointName?: string;
+  pickupPointAddress?: string;
+}
   createdAt:           string;
   items:               CheckoutItem[];
   total:               number;
