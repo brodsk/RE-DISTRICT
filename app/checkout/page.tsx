@@ -1,112 +1,14 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useLang } from "@/lib/lang";
 import { SHIPPING_OPTIONS, COUNTRIES } from "@/lib/shipping";
 import Link from "next/link";
-
-interface PickupPoint {
-  id:      string;
-  name:    string;
-  address: string;
-}
+import PacketaPickupSelector, { type PacketaPoint } from "@/components/PacketaPickupSelector";
 
 const inp = `w-full bg-transparent border border-white/10 hover:border-white/20 focus:border-white/40
   outline-none px-4 py-3 text-sm text-white font-mono placeholder:text-zinc-800 transition-colors`;
 const lbl = "block text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-600 mb-2";
-
-function PacketaPickupSelector({
-  country, selectedId, query, setQuery, onSelect, t,
-}: {
-  country:    string;
-  selectedId: string;
-  query:      string;
-  setQuery:   (value: string) => void;
-  onSelect:   (point: PickupPoint) => void;
-  t:          (en: string, ru: string) => string;
-}) {
-  const [points, setPoints] = useState<PickupPoint[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const params = new URLSearchParams({ country, q: query });
-        const res = await fetch(`/api/packeta-pickup-points?${params}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Packeta request failed");
-        setPoints(Array.isArray(data.points) ? data.points : []);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          setError(t("Pickup points are unavailable. Try again later.", "Пункты выдачи недоступны. Попробуйте позже."));
-          setPoints([]);
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [country, query, t]);
-
-  return (
-    <div className="mt-5">
-      <label className={lbl}>{t("Packeta Pickup Point", "Пункт выдачи Packeta")} *</label>
-      <input
-        className={inp}
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        placeholder={t("Search city, street, or pickup point", "Поиск по городу, улице или пункту")}
-      />
-      <div className="mt-3 space-y-2 max-h-72 overflow-y-auto pr-1">
-        {loading && (
-          <p className="text-[9px] font-mono text-zinc-700 border border-white/5 px-4 py-3">
-            {t("Loading pickup points...", "Загружаем пункты выдачи...")}
-          </p>
-        )}
-        {error && (
-          <p className="text-[9px] font-mono text-red-700 border border-red-900/30 px-4 py-3">{error}</p>
-        )}
-        {!loading && !error && points.length === 0 && (
-          <p className="text-[9px] font-mono text-zinc-700 border border-white/5 px-4 py-3">
-            {t("Start typing to find a Packeta pickup point.", "Начните вводить адрес или город для поиска пункта Packeta.")}
-          </p>
-        )}
-        {points.map(point => (
-          <button
-            key={point.id}
-            type="button"
-            onClick={() => onSelect(point)}
-            className={`w-full flex items-start gap-3 text-left border px-4 py-3 cursor-pointer transition-all ${
-              selectedId === point.id ? "border-white/40 bg-white/[0.03]" : "border-white/10 hover:border-white/20"
-            }`}
-          >
-            <span className={`w-3 h-3 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${
-              selectedId === point.id ? "border-white" : "border-white/30"
-            }`}>
-              {selectedId === point.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-            </span>
-            <span>
-              <span className="block text-[10px] font-mono text-white">{point.name}</span>
-              <span className="block text-[8px] font-mono text-zinc-600">{point.address}</span>
-              <span className="block text-[7px] font-mono text-zinc-800 mt-0.5">ID: {point.id}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
@@ -114,9 +16,9 @@ export default function CheckoutPage() {
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", country: "SK", city: "", address: "",
-    shippingId: "packeta-pickup-sk", pickupPointId: "", pickupPointName: "", pickupPointAddress: "",
+    shippingId: "packeta-pickup-sk",
   });
-  const [pickupQuery, setPickupQuery] = useState("");
+  const [pickupPoint, setPickupPoint] = useState<PacketaPoint | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -128,14 +30,10 @@ export default function CheckoutPage() {
         const opt = SHIPPING_OPTIONS.find(o => o.country === v && o.deliveryMethod === currentMethod) ??
           SHIPPING_OPTIONS.find(o => o.country === v);
         if (opt) next.shippingId = opt.id;
-        next.pickupPointId = "";
-        next.pickupPointName = "";
-        next.pickupPointAddress = "";
+        setPickupPoint(null);
       }
       if (k === "shippingId") {
-        next.pickupPointId = "";
-        next.pickupPointName = "";
-        next.pickupPointAddress = "";
+        setPickupPoint(null);
       }
       return next;
     });
@@ -146,26 +44,10 @@ export default function CheckoutPage() {
   const shippingForCountry = SHIPPING_OPTIONS.filter(o => o.country === form.country);
   const grandTotal = total + (shipping?.price ?? 0);
 
-  const selectedPickup = useMemo(() => ({
-    id: form.pickupPointId,
-    name: form.pickupPointName,
-    address: form.pickupPointAddress,
-  }), [form.pickupPointAddress, form.pickupPointId, form.pickupPointName]);
-
-  const selectPickup = (point: PickupPoint) => {
-    setForm(prev => ({
-      ...prev,
-      pickupPointId: point.id,
-      pickupPointName: point.name,
-      pickupPointAddress: point.address,
-      address: point.address,
-    }));
-  };
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
-    if (isPickup && !form.pickupPointId) {
+    if (isPickup && !pickupPoint?.id) {
       setError(t("Select a Packeta pickup point.", "Выберите пункт выдачи Packeta."));
       return;
     }
@@ -177,6 +59,9 @@ export default function CheckoutPage() {
     setLoading(true);
     setError("");
     try {
+      const pickupAddress = pickupPoint
+        ? `${pickupPoint.street}, ${pickupPoint.zip} ${pickupPoint.city}`
+        : "";
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,12 +73,12 @@ export default function CheckoutPage() {
             phone: form.phone,
             country: form.country,
             city: form.city,
-            address: isPickup ? form.pickupPointAddress : form.address,
+            address: isPickup ? pickupAddress : form.address,
             shippingId: form.shippingId,
             deliveryMethod: shipping.deliveryMethod,
-            pickupPointId: form.pickupPointId,
-            pickupPointName: form.pickupPointName,
-            pickupPointAddress: form.pickupPointAddress,
+            pickupPointId: pickupPoint?.id ?? "",
+            pickupPointName: pickupPoint?.name ?? "",
+            pickupPointAddress: pickupAddress,
           },
         }),
       });
@@ -311,25 +196,11 @@ export default function CheckoutPage() {
                 </div>
 
                 {isPickup ? (
-                  <>
-                    <PacketaPickupSelector
-                      country={form.country}
-                      selectedId={form.pickupPointId}
-                      query={pickupQuery}
-                      setQuery={setPickupQuery}
-                      onSelect={selectPickup}
-                      t={t}
-                    />
-                    {selectedPickup.id && (
-                      <div className="mt-4 border border-white/10 px-4 py-3">
-                        <p className="text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-600 mb-2">
-                          {t("Selected Pickup Point", "Выбранный пункт")}
-                        </p>
-                        <p className="text-[10px] font-mono text-white">{selectedPickup.name}</p>
-                        <p className="text-[8px] font-mono text-zinc-600">{selectedPickup.address}</p>
-                      </div>
-                    )}
-                  </>
+                  <PacketaPickupSelector
+                    country={form.country.toLowerCase()}
+                    onSelect={setPickupPoint}
+                    selected={pickupPoint}
+                  />
                 ) : (
                   <div>
                     <label className={lbl}>{t("Delivery Address", "Адрес доставки")} *</label>

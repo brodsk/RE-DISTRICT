@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { LangProvider } from "@/lib/lang";
 import { CartProvider } from "@/lib/cart";
@@ -19,6 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="bg-black">
       <body className="bg-black text-white antialiased overflow-x-hidden">
+        <Script
+          src="https://widget.packeta.com/v6/www/js/library.js"
+          strategy="afterInteractive"
+        />
         <LangProvider>
           <CartProvider>
             <LiveTitle />
