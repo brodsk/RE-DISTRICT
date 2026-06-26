@@ -174,9 +174,9 @@ export default function AdminDashboard() {
               </div>
 
               {/* TOTAL */}
-              <div className="mt-4 text-xl">
-                €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
-              </div>
+<div className="mt-4 text-xl">
+  €{((order.grandTotal ?? order.total ?? 0) * 100).toFixed(2)}
+</div>
 
             </div>
           );
