@@ -6,25 +6,30 @@ import { Product, SavedOrder } from "@/lib/types";
 import { useAdminLang, L } from "@/app/admin/layout";
 
 /* ─────────────────────────────────────────────
-   TYPES / STATUS
+   ORDER LIFECYCLE (SHOPIFY STYLE)
 ──────────────────────────────────────────── */
 
-type OrderStatus = "paid" | "pending" | "failed" | "shipped" | "unpaid";
+type OrderStatus =
+  | "unpaid"
+  | "paid"
+  | "packed"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded";
 
 function resolveStatus(order: SavedOrder): OrderStatus {
   switch (order.status) {
     case "paid":
     case "shipped":
-      return order.status;
-
     case "cancelled":
-      return "failed";
+      return order.status as OrderStatus;
 
     case "checkout_created":
       return "unpaid";
 
     default:
-      return "pending";
+      return "unpaid";
   }
 }
 
@@ -32,12 +37,14 @@ function resolveStatus(order: SavedOrder): OrderStatus {
    STATUS UI
 ──────────────────────────────────────────── */
 
-const STATUS_META: Record<OrderStatus, { label: string; color: string }> = {
-  paid:     { label: "PAID",     color: "text-emerald-400" },
-  shipped:  { label: "SHIPPED",  color: "text-blue-400" },
-  pending:  { label: "PENDING",  color: "text-yellow-400" },
-  unpaid:   { label: "UNPAID",   color: "text-orange-400" },
-  failed:   { label: "FAILED",   color: "text-red-400" },
+const STATUS: Record<OrderStatus, { label: string; className: string }> = {
+  unpaid:    { label: "UNPAID",    className: "text-orange-400" },
+  paid:      { label: "PAID",      className: "text-emerald-400" },
+  packed:    { label: "PACKED",    className: "text-blue-400" },
+  shipped:   { label: "SHIPPED",   className: "text-cyan-400" },
+  delivered: { label: "DELIVERED", className: "text-white" },
+  cancelled: { label: "CANCELLED", className: "text-red-400" },
+  refunded:  { label: "REFUNDED",  className: "text-yellow-400" },
 };
 
 /* ─────────────────────────────────────────────
@@ -50,7 +57,6 @@ function exportCSV(orders: SavedOrder[]) {
       "id",
       "name",
       "email",
-      "phone",
       "country",
       "city",
       "address",
@@ -62,7 +68,6 @@ function exportCSV(orders: SavedOrder[]) {
       o.id,
       o.customerName,
       o.customerEmail,
-      o.customerPhone,
       o.country,
       o.city,
       o.address,
@@ -79,12 +84,12 @@ function exportCSV(orders: SavedOrder[]) {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "orders.csv";
+  a.download = "redistrict-orders.csv";
   a.click();
 }
 
 /* ─────────────────────────────────────────────
-   MAIN
+   MAIN ADMIN
 ──────────────────────────────────────────── */
 
 export default function AdminDashboard() {
@@ -93,15 +98,15 @@ export default function AdminDashboard() {
   const [lang] = useAdminLang();
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | OrderStatus>("all");
-  const [countryFilter, setCountryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [countryFilter, setCountryFilter] = useState("all");
 
   useEffect(() => {
     fetch("/api/products").then(r => r.json()).then(setProducts);
     fetch("/api/orders").then(r => r.json()).then(setOrders);
   }, []);
 
-  /* ── FILTERED ORDERS ───────────────────── */
+  /* ───────────────────────────────────────── */
 
   const filtered = useMemo(() => {
     return orders.filter(o => {
@@ -110,24 +115,31 @@ export default function AdminDashboard() {
       const matchSearch =
         o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
         o.customerEmail?.toLowerCase().includes(search.toLowerCase()) ||
-        o.id.toLowerCase().includes(search.toLowerCase());
+        o.id.toLowerCase().includes(search.toLowerCase()) ||
+        (o.items ?? []).some(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
-      const matchStatus = filter === "all" || status === filter;
+      const matchStatus = statusFilter === "all" || status === statusFilter;
       const matchCountry = countryFilter === "all" || o.country === countryFilter;
 
       return matchSearch && matchStatus && matchCountry;
     });
-  }, [orders, search, filter, countryFilter]);
+  }, [orders, search, statusFilter, countryFilter]);
 
   const countries = Array.from(new Set(orders.map(o => o.country).filter(Boolean)));
 
-  /* ── ACTIONS (HOOKS) ───────────────────── */
+  /* ─────────────────────────────────────────
+     ACTIONS (API HOOKS)
+  ───────────────────────────────────────── */
 
   async function updateStatus(id: string, status: OrderStatus) {
     await fetch("/api/orders/update-status", {
       method: "POST",
       body: JSON.stringify({ id, status }),
     });
+
+    setOrders(prev =>
+      prev.map(o => (o.id === id ? { ...o, status } : o))
+    );
   }
 
   async function refundOrder(id: string) {
@@ -140,51 +152,49 @@ export default function AdminDashboard() {
   /* ───────────────────────────────────────── */
 
   return (
-    <div className="p-10 text-[15px] font-mono bg-black text-white min-h-screen">
+    <div className="p-10 bg-black text-white min-h-screen font-mono text-[15px]">
 
       {/* HEADER */}
       <div className="mb-8">
-        <h1 className="text-3xl font-light">RE:DISTRICT ADMIN</h1>
-        <p className="text-zinc-500 text-sm">Shopify-like control panel</p>
+        <h1 className="text-4xl font-light">RE:DISTRICT ADMIN v3</h1>
+        <p className="text-zinc-500">Shopify-level order system</p>
       </div>
 
       {/* CONTROLS */}
       <div className="flex flex-wrap gap-3 mb-6">
 
         <input
-          className="bg-zinc-900 px-3 py-2 text-sm"
-          placeholder="Search orders..."
+          className="bg-zinc-900 px-3 py-2"
+          placeholder="Search orders, items, email..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
 
         <select
-          className="bg-zinc-900 px-3 py-2 text-sm"
-          value={filter}
-          onChange={e => setFilter(e.target.value as any)}
+          className="bg-zinc-900 px-3 py-2"
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value as any)}
         >
-          <option value="all">All</option>
-          <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
-          <option value="unpaid">Unpaid</option>
-          <option value="failed">Failed</option>
-          <option value="shipped">Shipped</option>
+          <option value="all">All statuses</option>
+          {Object.keys(STATUS).map(s => (
+            <option key={s} value={s}>{s.toUpperCase()}</option>
+          ))}
         </select>
 
         <select
-          className="bg-zinc-900 px-3 py-2 text-sm"
+          className="bg-zinc-900 px-3 py-2"
           value={countryFilter}
           onChange={e => setCountryFilter(e.target.value)}
         >
           <option value="all">All countries</option>
           {countries.map(c => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c}>{c}</option>
           ))}
         </select>
 
         <button
           onClick={() => exportCSV(filtered)}
-          className="bg-white text-black px-3 py-2 text-sm"
+          className="bg-white text-black px-3 py-2"
         >
           Export CSV
         </button>
@@ -192,72 +202,68 @@ export default function AdminDashboard() {
       </div>
 
       {/* ORDERS */}
-      <div className="space-y-4">
+      <div className="space-y-5">
 
         {filtered.map(order => {
           const status = resolveStatus(order);
 
           return (
-            <div key={order.id} className="border border-zinc-800 p-4">
+            <div key={order.id} className="border border-zinc-800 p-5">
 
               {/* TOP */}
               <div className="flex justify-between">
 
                 <div>
-                  <p className="text-lg">{order.customerName || "No name"}</p>
-                  <p className="text-zinc-500 text-sm">
-                    {order.country} · {order.city} · {order.address}
+                  <p className="text-xl">{order.customerName || "Unknown"}</p>
+                  <p className="text-zinc-500">
+                    {order.email || order.customerEmail} · {order.country} · {order.city}
                   </p>
                 </div>
 
-                <div className={STATUS_META[status].color}>
-                  {STATUS_META[status].label}
+                <div className={STATUS[status].className}>
+                  {STATUS[status].label}
                 </div>
 
               </div>
 
               {/* ITEMS */}
-              <div className="mt-3 text-sm text-zinc-300">
-                {order.items?.map((i, idx) => (
+              <div className="mt-3 text-zinc-300">
+                {(order.items ?? []).map((i, idx) => (
                   <div key={idx}>
-                    {i.name} × {i.quantity}
+                    • {i.name} × {i.quantity}
                   </div>
                 ))}
               </div>
 
               {/* TOTAL */}
-              <div className="mt-3 text-white">
-                Total: €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
+              <div className="mt-3 text-white text-lg">
+                €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
               </div>
 
               {/* ACTIONS */}
-              <div className="flex gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 mt-4">
 
-                <button
-                  onClick={() => updateStatus(order.id, "paid")}
-                  className="text-xs px-2 py-1 bg-emerald-900"
-                >
-                  Mark Paid
+                <button onClick={() => updateStatus(order.id, "paid")} className="px-2 py-1 bg-emerald-900">
+                  Paid
                 </button>
 
-                <button
-                  onClick={() => updateStatus(order.id, "shipped")}
-                  className="text-xs px-2 py-1 bg-blue-900"
-                >
+                <button onClick={() => updateStatus(order.id, "packed")} className="px-2 py-1 bg-blue-900">
+                  Packed
+                </button>
+
+                <button onClick={() => updateStatus(order.id, "shipped")} className="px-2 py-1 bg-cyan-900">
                   Shipped
                 </button>
 
-                <button
-                  onClick={() => updateStatus(order.id, "failed")}
-                  className="text-xs px-2 py-1 bg-red-900"
-                >
+                <button onClick={() => updateStatus(order.id, "delivered")} className="px-2 py-1 bg-white text-black">
+                  Delivered
+                </button>
+
+                <button onClick={() => updateStatus(order.id, "cancelled")} className="px-2 py-1 bg-red-900">
                   Cancel
                 </button>
 
-                <button
-                  onClick={() => refundOrder(order.id)}
-                  className="text-xs px-2 py-1 bg-yellow-900"
-                >
+                <button onClick={() => refundOrder(order.id)} className="px-2 py-1 bg-yellow-900">
                   Refund
                 </button>
 
