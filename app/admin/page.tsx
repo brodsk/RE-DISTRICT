@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Product, SavedOrder } from "@/lib/types";
-import { useAdminLang, L } from "@/app/admin/layout";
+import { useAdminLang } from "@/app/admin/layout";
 
 /* ─────────────────────────────────────────────
-   ORDER LIFECYCLE (SHOPIFY STYLE)
+   ORDER STATUS
 ──────────────────────────────────────────── */
 
 type OrderStatus =
+  | "checkout_created"
   | "unpaid"
   | "paid"
   | "packed"
@@ -21,9 +21,12 @@ type OrderStatus =
 function resolveStatus(order: SavedOrder): OrderStatus {
   switch (order.status) {
     case "paid":
+    case "packed":
     case "shipped":
+    case "delivered":
     case "cancelled":
-      return order.status as OrderStatus;
+    case "refunded":
+      return order.status;
 
     case "checkout_created":
       return "unpaid";
@@ -45,127 +48,57 @@ const STATUS: Record<OrderStatus, { label: string; className: string }> = {
   delivered: { label: "DELIVERED", className: "text-white" },
   cancelled: { label: "CANCELLED", className: "text-red-400" },
   refunded:  { label: "REFUNDED",  className: "text-yellow-400" },
+  checkout_created: { label: "NEW", className: "text-zinc-500" },
 };
-
-/* ─────────────────────────────────────────────
-   CSV EXPORT
-──────────────────────────────────────────── */
-
-function exportCSV(orders: SavedOrder[]) {
-  const rows = [
-    [
-      "id",
-      "name",
-      "email",
-      "country",
-      "city",
-      "address",
-      "status",
-      "total",
-      "items"
-    ],
-    ...orders.map(o => [
-      o.id,
-      o.customerName,
-      o.customerEmail,
-      o.country,
-      o.city,
-      o.address,
-      o.status,
-      ((o.grandTotal ?? o.total ?? 0) / 100).toFixed(2),
-      (o.items ?? []).map(i => `${i.name} x${i.quantity}`).join(" | ")
-    ])
-  ];
-
-  const csv = rows.map(r => r.map(x => `"${x ?? ""}"`).join(",")).join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "redistrict-orders.csv";
-  a.click();
-}
 
 /* ─────────────────────────────────────────────
    MAIN ADMIN
 ──────────────────────────────────────────── */
 
 export default function AdminDashboard() {
-  const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<SavedOrder[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [lang] = useAdminLang();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
-  const [countryFilter, setCountryFilter] = useState("all");
 
   useEffect(() => {
-    fetch("/api/products").then(r => r.json()).then(setProducts);
-    fetch("/api/orders").then(r => r.json()).then(setOrders);
+    fetch("/api/orders").then(r => r.json()).then(setOrders).catch(() => {});
+    fetch("/api/products").then(r => r.json()).then(setProducts).catch(() => {});
   }, []);
 
-  /* ───────────────────────────────────────── */
-
   const filtered = useMemo(() => {
-    return orders.filter(o => {
-      const status = resolveStatus(o);
+    return orders.filter(order => {
+      const status = resolveStatus(order);
 
-      const matchSearch =
-        o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-        o.customerEmail?.toLowerCase().includes(search.toLowerCase()) ||
-        o.id.toLowerCase().includes(search.toLowerCase()) ||
-        (o.items ?? []).some(i => i.name.toLowerCase().includes(search.toLowerCase()));
+      const text = `
+        ${order.customerName ?? ""}
+        ${order.customerEmail ?? ""}
+        ${order.country ?? ""}
+        ${order.city ?? ""}
+        ${order.id}
+      `.toLowerCase();
 
+      const matchSearch = text.includes(search.toLowerCase());
       const matchStatus = statusFilter === "all" || status === statusFilter;
-      const matchCountry = countryFilter === "all" || o.country === countryFilter;
 
-      return matchSearch && matchStatus && matchCountry;
+      return matchSearch && matchStatus;
     });
-  }, [orders, search, statusFilter, countryFilter]);
-
-  const countries = Array.from(new Set(orders.map(o => o.country).filter(Boolean)));
-
-  /* ─────────────────────────────────────────
-     ACTIONS (API HOOKS)
-  ───────────────────────────────────────── */
-
-  async function updateStatus(id: string, status: OrderStatus) {
-    await fetch("/api/orders/update-status", {
-      method: "POST",
-      body: JSON.stringify({ id, status }),
-    });
-
-    setOrders(prev =>
-      prev.map(o => (o.id === id ? { ...o, status } : o))
-    );
-  }
-
-  async function refundOrder(id: string) {
-    await fetch("/api/orders/refund", {
-      method: "POST",
-      body: JSON.stringify({ id }),
-    });
-  }
-
-  /* ───────────────────────────────────────── */
+  }, [orders, search, statusFilter]);
 
   return (
-    <div className="p-10 bg-black text-white min-h-screen font-mono text-[15px]">
+    <div className="p-10 bg-black text-white min-h-screen font-mono text-[16px]">
 
-      {/* HEADER */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-light">RE:DISTRICT ADMIN v3</h1>
-        <p className="text-zinc-500">Shopify-level order system</p>
-      </div>
+      <h1 className="text-4xl font-light mb-2">RE:DISTRICT ADMIN</h1>
+      <p className="text-zinc-500 mb-6">Orders control panel</p>
 
       {/* CONTROLS */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex gap-3 mb-6 flex-wrap">
 
         <input
           className="bg-zinc-900 px-3 py-2"
-          placeholder="Search orders, items, email..."
+          placeholder="Search orders..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -175,29 +108,13 @@ export default function AdminDashboard() {
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value as any)}
         >
-          <option value="all">All statuses</option>
+          <option value="all">All</option>
           {Object.keys(STATUS).map(s => (
-            <option key={s} value={s}>{s.toUpperCase()}</option>
+            <option key={s} value={s}>
+              {s.toUpperCase()}
+            </option>
           ))}
         </select>
-
-        <select
-          className="bg-zinc-900 px-3 py-2"
-          value={countryFilter}
-          onChange={e => setCountryFilter(e.target.value)}
-        >
-          <option value="all">All countries</option>
-          {countries.map(c => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-
-        <button
-          onClick={() => exportCSV(filtered)}
-          className="bg-white text-black px-3 py-2"
-        >
-          Export CSV
-        </button>
 
       </div>
 
@@ -210,13 +127,16 @@ export default function AdminDashboard() {
           return (
             <div key={order.id} className="border border-zinc-800 p-5">
 
-              {/* TOP */}
-              <div className="flex justify-between">
+              {/* HEADER */}
+              <div className="flex justify-between items-start">
 
                 <div>
-                  <p className="text-xl">{order.customerName || "Unknown"}</p>
-                  <p className="text-zinc-500">
-                    {order.email || order.customerEmail} · {order.country} · {order.city}
+                  <p className="text-2xl">
+                    {order.customerName || "Unknown customer"}
+                  </p>
+
+                  <p className="text-zinc-400 text-sm">
+                    {order.customerEmail || "no-email"} · {order.country || "—"} · {order.city || "—"}
                   </p>
                 </div>
 
@@ -227,7 +147,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* ITEMS */}
-              <div className="mt-3 text-zinc-300">
+              <div className="mt-3 text-zinc-300 text-sm">
                 {(order.items ?? []).map((i, idx) => (
                   <div key={idx}>
                     • {i.name} × {i.quantity}
@@ -236,37 +156,8 @@ export default function AdminDashboard() {
               </div>
 
               {/* TOTAL */}
-              <div className="mt-3 text-white text-lg">
+              <div className="mt-4 text-xl">
                 €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
-              </div>
-
-              {/* ACTIONS */}
-              <div className="flex flex-wrap gap-2 mt-4">
-
-                <button onClick={() => updateStatus(order.id, "paid")} className="px-2 py-1 bg-emerald-900">
-                  Paid
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "packed")} className="px-2 py-1 bg-blue-900">
-                  Packed
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "shipped")} className="px-2 py-1 bg-cyan-900">
-                  Shipped
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "delivered")} className="px-2 py-1 bg-white text-black">
-                  Delivered
-                </button>
-
-                <button onClick={() => updateStatus(order.id, "cancelled")} className="px-2 py-1 bg-red-900">
-                  Cancel
-                </button>
-
-                <button onClick={() => refundOrder(order.id)} className="px-2 py-1 bg-yellow-900">
-                  Refund
-                </button>
-
               </div>
 
             </div>
@@ -274,7 +165,6 @@ export default function AdminDashboard() {
         })}
 
       </div>
-
     </div>
   );
 }
