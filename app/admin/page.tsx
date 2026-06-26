@@ -1,47 +1,87 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Product, SavedOrder } from "@/lib/types";
 import { useAdminLang, L } from "@/app/admin/layout";
 
 /* ─────────────────────────────────────────────
-   ORDER STATUS (SHOPIFY-LIKE)
+   TYPES / STATUS
 ──────────────────────────────────────────── */
 
-type OrderStatus =
-  | "checkout_created"
-  | "paid"
-  | "processing"
-  | "shipped"
-  | "refunded"
-  | "cancelled";
+type OrderStatus = "paid" | "pending" | "failed" | "shipped" | "unpaid";
 
-function normalizeStatus(order: SavedOrder): OrderStatus {
-  return (order.status as OrderStatus) || "checkout_created";
+function resolveStatus(order: SavedOrder): OrderStatus {
+  switch (order.status) {
+    case "paid":
+    case "shipped":
+      return order.status;
+
+    case "cancelled":
+      return "failed";
+
+    case "checkout_created":
+      return "unpaid";
+
+    default:
+      return "pending";
+  }
 }
 
 /* ─────────────────────────────────────────────
-   UI HELPERS
+   STATUS UI
 ──────────────────────────────────────────── */
 
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  checkout_created: "PENDING",
-  paid: "PAID",
-  processing: "PROCESSING",
-  shipped: "SHIPPED",
-  refunded: "REFUNDED",
-  cancelled: "CANCELLED",
+const STATUS_META: Record<OrderStatus, { label: string; color: string }> = {
+  paid:     { label: "PAID",     color: "text-emerald-400" },
+  shipped:  { label: "SHIPPED",  color: "text-blue-400" },
+  pending:  { label: "PENDING",  color: "text-yellow-400" },
+  unpaid:   { label: "UNPAID",   color: "text-orange-400" },
+  failed:   { label: "FAILED",   color: "text-red-400" },
 };
 
-const STATUS_COLOR: Record<OrderStatus, string> = {
-  checkout_created: "text-yellow-400",
-  paid: "text-emerald-400",
-  processing: "text-blue-400",
-  shipped: "text-indigo-400",
-  refunded: "text-purple-400",
-  cancelled: "text-red-400",
-};
+/* ─────────────────────────────────────────────
+   CSV EXPORT
+──────────────────────────────────────────── */
+
+function exportCSV(orders: SavedOrder[]) {
+  const rows = [
+    [
+      "id",
+      "name",
+      "email",
+      "phone",
+      "country",
+      "city",
+      "address",
+      "status",
+      "total",
+      "items"
+    ],
+    ...orders.map(o => [
+      o.id,
+      o.customerName,
+      o.customerEmail,
+      o.customerPhone,
+      o.country,
+      o.city,
+      o.address,
+      o.status,
+      ((o.grandTotal ?? o.total ?? 0) / 100).toFixed(2),
+      (o.items ?? []).map(i => `${i.name} x${i.quantity}`).join(" | ")
+    ])
+  ];
+
+  const csv = rows.map(r => r.map(x => `"${x ?? ""}"`).join(",")).join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "orders.csv";
+  a.click();
+}
 
 /* ─────────────────────────────────────────────
    MAIN
@@ -53,198 +93,180 @@ export default function AdminDashboard() {
   const [lang] = useAdminLang();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<"all" | OrderStatus>("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
 
   useEffect(() => {
-    fetch("/api/products").then(r => r.json()).then(setProducts).catch(() => {});
-    fetch("/api/orders").then(r => r.json()).then(setOrders).catch(() => {});
+    fetch("/api/products").then(r => r.json()).then(setProducts);
+    fetch("/api/orders").then(r => r.json()).then(setOrders);
   }, []);
 
-  /* ─────────────────────────────
-     FILTERED ORDERS
-  ───────────────────────────── */
+  /* ── FILTERED ORDERS ───────────────────── */
 
-  const filteredOrders = useMemo(() => {
-    return orders
-      .filter(o => {
-        const status = normalizeStatus(o);
+  const filtered = useMemo(() => {
+    return orders.filter(o => {
+      const status = resolveStatus(o);
 
-        const matchStatus =
-          statusFilter === "all" || status === statusFilter;
+      const matchSearch =
+        o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+        o.customerEmail?.toLowerCase().includes(search.toLowerCase()) ||
+        o.id.toLowerCase().includes(search.toLowerCase());
 
-        const matchCountry =
-          countryFilter === "all" || o.country === countryFilter;
+      const matchStatus = filter === "all" || status === filter;
+      const matchCountry = countryFilter === "all" || o.country === countryFilter;
 
-        const matchSearch =
-          o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-          o.customerEmail?.toLowerCase().includes(search.toLowerCase()) ||
-          o.id.toLowerCase().includes(search.toLowerCase());
+      return matchSearch && matchStatus && matchCountry;
+    });
+  }, [orders, search, filter, countryFilter]);
 
-        return matchStatus && matchCountry && matchSearch;
-      })
-      .sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-  }, [orders, search, statusFilter, countryFilter]);
+  const countries = Array.from(new Set(orders.map(o => o.country).filter(Boolean)));
 
-  /* ─────────────────────────────
-     STATS
-  ───────────────────────────── */
+  /* ── ACTIONS (HOOKS) ───────────────────── */
 
-  const stats = {
-    total: orders.length,
-    paid: orders.filter(o => normalizeStatus(o) === "paid").length,
-    pending: orders.filter(o => normalizeStatus(o) === "checkout_created").length,
-    refunded: orders.filter(o => normalizeStatus(o) === "refunded").length,
-  };
+  async function updateStatus(id: string, status: OrderStatus) {
+    await fetch("/api/orders/update-status", {
+      method: "POST",
+      body: JSON.stringify({ id, status }),
+    });
+  }
 
-  /* ─────────────────────────────
-     UI
-  ───────────────────────────── */
+  async function refundOrder(id: string) {
+    await fetch("/api/orders/refund", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    });
+  }
+
+  /* ───────────────────────────────────────── */
 
   return (
-    <div className="pt-16 px-6 md:px-10 text-[14px]">
+    <div className="p-10 text-[15px] font-mono bg-black text-white min-h-screen">
 
       {/* HEADER */}
-      <div className="mb-10">
-        <h1 className="text-3xl font-light tracking-tight">
-          {L(lang, "Admin Panel", "Админ панель")}
-        </h1>
-        <p className="text-zinc-500 mt-2">
-          Shopify-style order management system
-        </p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-light">RE:DISTRICT ADMIN</h1>
+        <p className="text-zinc-500 text-sm">Shopify-like control panel</p>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        {[
-          ["Total", stats.total],
-          ["Paid", stats.paid],
-          ["Pending", stats.pending],
-          ["Refunded", stats.refunded],
-        ].map(([label, value]) => (
-          <div key={label} className="border border-white/10 p-4">
-            <p className="text-zinc-500 text-xs">{label}</p>
-            <p className="text-2xl font-light">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* FILTERS */}
+      {/* CONTROLS */}
       <div className="flex flex-wrap gap-3 mb-6">
 
         <input
+          className="bg-zinc-900 px-3 py-2 text-sm"
           placeholder="Search orders..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-black border border-white/10 px-3 py-2 text-sm w-64"
         />
 
         <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="bg-black border border-white/10 px-3 py-2"
+          className="bg-zinc-900 px-3 py-2 text-sm"
+          value={filter}
+          onChange={e => setFilter(e.target.value as any)}
         >
-          <option value="all">All statuses</option>
+          <option value="all">All</option>
           <option value="paid">Paid</option>
-          <option value="checkout_created">Pending</option>
-          <option value="processing">Processing</option>
+          <option value="pending">Pending</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="failed">Failed</option>
           <option value="shipped">Shipped</option>
-          <option value="refunded">Refunded</option>
-          <option value="cancelled">Cancelled</option>
         </select>
 
         <select
+          className="bg-zinc-900 px-3 py-2 text-sm"
           value={countryFilter}
           onChange={e => setCountryFilter(e.target.value)}
-          className="bg-black border border-white/10 px-3 py-2"
         >
           <option value="all">All countries</option>
-          <option value="SK">Slovakia</option>
-          <option value="CZ">Czech</option>
-          <option value="DE">Germany</option>
-          <option value="PL">Poland</option>
+          {countries.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
         </select>
+
+        <button
+          onClick={() => exportCSV(filtered)}
+          className="bg-white text-black px-3 py-2 text-sm"
+        >
+          Export CSV
+        </button>
 
       </div>
 
       {/* ORDERS */}
-      <div className="border border-white/10">
+      <div className="space-y-4">
 
-        {filteredOrders.length === 0 ? (
-          <div className="p-6 text-zinc-500">No orders</div>
-        ) : (
-          filteredOrders.map(order => {
-            const status = normalizeStatus(order);
+        {filtered.map(order => {
+          const status = resolveStatus(order);
 
-            return (
-              <div
-                key={order.id}
-                className="border-b border-white/10 p-5 hover:bg-white/[0.02]"
-              >
+          return (
+            <div key={order.id} className="border border-zinc-800 p-4">
 
-                {/* TOP ROW */}
-                <div className="flex justify-between">
+              {/* TOP */}
+              <div className="flex justify-between">
 
-                  <div>
-                    <p className="font-mono text-sm">{order.id}</p>
-                    <p className="text-zinc-500 text-sm">
-                      {order.customerName} · {order.customerEmail}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className={`font-medium ${STATUS_COLOR[status]}`}>
-                      {STATUS_LABEL[status]}
-                    </p>
-                    <p className="text-sm text-zinc-500">
-                      {(order.grandTotal / 100).toFixed(2)} €
-                    </p>
-                  </div>
-
+                <div>
+                  <p className="text-lg">{order.customerName || "No name"}</p>
+                  <p className="text-zinc-500 text-sm">
+                    {order.country} · {order.city} · {order.address}
+                  </p>
                 </div>
 
-                {/* INFO GRID */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm text-zinc-400">
-
-                  <div>
-                    <p className="text-zinc-600 text-xs">Country</p>
-                    <p>{order.country || "-"}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-zinc-600 text-xs">City</p>
-                    <p>{order.city || "-"}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-zinc-600 text-xs">Address</p>
-                    <p>{order.address || "-"}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-zinc-600 text-xs">Items</p>
-                    <p>{order.items?.length || 0}</p>
-                  </div>
-
+                <div className={STATUS_META[status].color}>
+                  {STATUS_META[status].label}
                 </div>
 
               </div>
-            );
-          })
-        )}
 
-      </div>
+              {/* ITEMS */}
+              <div className="mt-3 text-sm text-zinc-300">
+                {order.items?.map((i, idx) => (
+                  <div key={idx}>
+                    {i.name} × {i.quantity}
+                  </div>
+                ))}
+              </div>
 
-      {/* ACTIONS */}
-      <div className="mt-8 flex gap-3">
-        <Link href="/admin/products" className="border px-4 py-2 text-sm">
-          Products
-        </Link>
-        <Link href="/admin" className="border px-4 py-2 text-sm">
-          Refresh
-        </Link>
+              {/* TOTAL */}
+              <div className="mt-3 text-white">
+                Total: €{((order.grandTotal ?? order.total ?? 0) / 100).toFixed(2)}
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex gap-2 mt-3">
+
+                <button
+                  onClick={() => updateStatus(order.id, "paid")}
+                  className="text-xs px-2 py-1 bg-emerald-900"
+                >
+                  Mark Paid
+                </button>
+
+                <button
+                  onClick={() => updateStatus(order.id, "shipped")}
+                  className="text-xs px-2 py-1 bg-blue-900"
+                >
+                  Shipped
+                </button>
+
+                <button
+                  onClick={() => updateStatus(order.id, "failed")}
+                  className="text-xs px-2 py-1 bg-red-900"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={() => refundOrder(order.id)}
+                  className="text-xs px-2 py-1 bg-yellow-900"
+                >
+                  Refund
+                </button>
+
+              </div>
+
+            </div>
+          );
+        })}
+
       </div>
 
     </div>
