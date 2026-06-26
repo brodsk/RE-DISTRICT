@@ -1,4 +1,3 @@
-// lib/types.ts
 
 /* ─────────────────────────────
    PRODUCTS
@@ -86,7 +85,7 @@ export interface ShippingOption {
 }
 
 /* ─────────────────────────────
-   ORDERS (SHOPIFY v3 CORE FIX)
+   ORDERS (SHOPIFY-STYLE STATE MACHINE)
 ──────────────────────────── */
 
 export type OrderStatus =
