@@ -79,6 +79,13 @@ export interface CategoryCrawlResult {
 
 // ── Import report ──────────────────────────────────────────────────────────
 
+export interface SyncStats {
+  storeCreated: number;
+  storeUpdated: number;
+  storeSkipped: number;
+  storeFailed: number;
+}
+
 export interface ImportReport {
   startedAt: string;
   finishedAt: string;
@@ -86,6 +93,7 @@ export interface ImportReport {
   categoryUrl: string;
   pagesFound: number;
   pagesCrawled: number;
+  // supplier_products stats
   productsFound: number;
   productsCreated: number;
   productsUpdated: number;
@@ -93,6 +101,8 @@ export interface ImportReport {
   productsFailed: number;
   imagesDownloaded: number;
   imagesSkipped: number;
+  // products (store) sync stats
+  sync: SyncStats;
   errors: ImportError[];
 }
 

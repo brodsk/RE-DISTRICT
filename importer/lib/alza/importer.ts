@@ -6,12 +6,12 @@
  * Entry point: importAlzaCategory(url)
  */
 
-import type { AlzaProduct, ImportReport, ImportError } from "./types";
+import type { AlzaProduct, ImportReport, ImportError, SyncStats } from "./types";
 import { crawlCategory } from "./category";
 import { scrapeProducts } from "./product";
 import { processProductImages, ensureImageBucket } from "./images";
 import { upsertSupplierProduct, markMissingProductsUnavailable, verifyDatabaseSchema } from "./database";
-import { syncProductToStore } from "./storage";
+import { syncProducts } from "./sync";
 import { logger } from "./logger";
 import { closeContext } from "./client";
 import { closeBrowser } from "./browser";
@@ -20,7 +20,7 @@ import { closeBrowser } from "./browser";
 
 /**
  * Run a complete import of an Alza category.
- * Handles all phases: crawl → scrape → images → database → store sync.
+ * Handles all phases: crawl → scrape → images → supplier_products → sync → store.
  *
  * @param categoryUrl - e.g. "https://www.alza.sk/beauty/casio/v1508.htm"
  * @returns Detailed ImportReport
@@ -39,6 +39,7 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
   let productsFailed = 0;
   let imagesDownloaded = 0;
   let imagesSkipped = 0;
+  let syncStats: SyncStats = { storeCreated: 0, storeUpdated: 0, storeSkipped: 0, storeFailed: 0 };
 
   const seenProductIds = new Set<string>();
 
@@ -79,7 +80,7 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
       return buildReport({
         startedAt, startMs, categoryUrl, pagesFound, pagesCrawled,
         productsFound, productsCreated, productsUpdated, productsUnavailable,
-        productsFailed, imagesDownloaded, imagesSkipped, errors,
+        productsFailed, imagesDownloaded, imagesSkipped, syncStats, errors,
       });
     }
 
@@ -146,10 +147,10 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
 
     logger.success(`Phase 3 complete: ${imagesDownloaded} downloaded, ${imagesSkipped} skipped`);
 
-    // ── Phase 4: Database sync ────────────────────────────────────────────
+    // ── Phase 4: Upsert into supplier_products ────────────────────────────
 
     logger.setPhase("database");
-    logger.info(`Phase 4: Syncing ${successful.length} products to Supabase...`);
+    logger.info(`Phase 4: Syncing ${successful.length} products to supplier_products...`);
 
     for (const { product } of successful) {
       if (!product) continue;
@@ -162,14 +163,16 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
         if (action === "created") productsCreated++;
         else productsUpdated++;
 
-        logger.debug(`DB ${action}: ${product.name}`);
+        logger.debug(`supplier_products ${action}: ${product.name}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`DB sync failed: ${product.name}`, { error: msg });
+        logger.error(`supplier_products sync failed: ${product.name}`, { error: msg });
         errors.push({ url: product.url, message: msg, phase: "database" });
         productsFailed++;
       }
     }
+
+    logger.success(`Phase 4 complete: ${productsCreated} created, ${productsUpdated} updated in supplier_products`);
 
     // ── Phase 5: Mark missing products unavailable ────────────────────────
 
@@ -180,26 +183,20 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
 
     logger.success(`Phase 5 complete: ${productsUnavailable} products marked unavailable`);
 
-    // ── Phase 6: Sync to RE:DISTRICT product store ────────────────────────
+    // ── Phase 6: Sync supplier_products → RE:DISTRICT product store ───────
 
     logger.setPhase("store-sync");
-    logger.info("Phase 6: Syncing to RE:DISTRICT product store...");
+    logger.info("Phase 6: Syncing supplier_products → product store...");
 
-    for (const { product } of successful) {
-      if (!product) continue;
+    // Pass categoryUrl so sync engine can scope to this import if needed
+    syncStats = await syncProducts(categoryUrl);
 
-      const imageUrls = productImageMap.get(product.supplierProductId) ?? [];
-
-      try {
-        await syncProductToStore(product, imageUrls);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`Store sync failed: ${product.name}`, { error: msg });
-        // Non-fatal: supplier_products is the source of truth
-      }
-    }
-
-    logger.success("Phase 6 complete: Product store synced");
+    logger.success(`Phase 6 complete`, {
+      storeCreated: syncStats.storeCreated,
+      storeUpdated: syncStats.storeUpdated,
+      storeSkipped: syncStats.storeSkipped,
+      storeFailed:  syncStats.storeFailed,
+    });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -207,7 +204,6 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
     errors.push({ url: categoryUrl, message: msg, phase: "crawl" });
     productsFailed++;
   } finally {
-    // Always clean up browser resources
     logger.setPhase("cleanup");
     await closeContext().catch(() => undefined);
     await closeBrowser().catch(() => undefined);
@@ -217,7 +213,7 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
   const report = buildReport({
     startedAt, startMs, categoryUrl, pagesFound, pagesCrawled,
     productsFound, productsCreated, productsUpdated, productsUnavailable,
-    productsFailed, imagesDownloaded, imagesSkipped, errors,
+    productsFailed, imagesDownloaded, imagesSkipped, syncStats, errors,
   });
 
   logger.setPhase("complete");
@@ -225,7 +221,8 @@ export async function importAlzaCategory(categoryUrl: string): Promise<ImportRep
   logger.success("║  IMPORT COMPLETE                             ║");
   logger.success("╚══════════════════════════════════════════════╝");
   logger.info(`Duration: ${report.durationMs}ms`);
-  logger.info(`Created: ${productsCreated} | Updated: ${productsUpdated} | Failed: ${productsFailed}`);
+  logger.info(`supplier_products — Created: ${productsCreated} | Updated: ${productsUpdated} | Unavailable: ${productsUnavailable}`);
+  logger.info(`store products    — Created: ${syncStats.storeCreated} | Updated: ${syncStats.storeUpdated} | Failed: ${syncStats.storeFailed}`);
   logger.info(`Images: ${imagesDownloaded} downloaded, ${imagesSkipped} skipped`);
 
   return report;
@@ -246,6 +243,7 @@ function buildReport(args: {
   productsFailed: number;
   imagesDownloaded: number;
   imagesSkipped: number;
+  syncStats: SyncStats;
   errors: ImportError[];
 }): ImportReport {
   const finishedAt = new Date().toISOString();
@@ -265,6 +263,7 @@ function buildReport(args: {
     productsFailed: args.productsFailed,
     imagesDownloaded: args.imagesDownloaded,
     imagesSkipped: args.imagesSkipped,
+    sync: args.syncStats,
     errors: args.errors,
   };
 }
